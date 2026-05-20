@@ -35,16 +35,18 @@ class MainActivity : ComponentActivity() {
                 val context = LocalContext.current
 
                 LaunchedEffect(authState) {
-                    if (authState.isNotEmpty()) {
-                        if (authState != "Loading..." && authState != "Đang kết nối với Google...") {
-                            Toast.makeText(context, authState, Toast.LENGTH_SHORT).show()
-                        }
+                    // Chỉ xử lý khi chuỗi trạng thái có nội dung thực sự và không phải trạng thái chờ
+                    if (authState.isNotBlank() && authState != "Loading..." && authState != "Đang kết nối với Google...") {
+
+                        Toast.makeText(context, authState, Toast.LENGTH_SHORT).show()
 
                         when (authState) {
                             "Đăng nhập User thành công!" -> {
+                                // 1. Chuyển màn hình trước
                                 navController.navigate("main_user") {
                                     popUpTo("login") { inclusive = true }
                                 }
+                                // 2. Clear state sau để cắt đứt vòng lặp Recomposition gây nghẽn 199 frames
                                 authViewModel.clearAuthState()
                             }
                             "Đăng nhập Restaurant thành công!" -> {
@@ -54,12 +56,11 @@ class MainActivity : ComponentActivity() {
                                 authViewModel.clearAuthState()
                             }
                             "Đăng nhập Shipper thành công!" -> {
-                                navController.navigate("main_shipper") { // Đã sửa chính tả thành "main_shipper"
+                                navController.navigate("main_shipper") {
                                     popUpTo("login") { inclusive = true }
                                 }
                                 authViewModel.clearAuthState()
                             }
-                            // 💡 Bổ sung điều hướng cho Admin thành công nếu cần
                             "Đăng nhập Admin thành công!" -> {
                                 navController.navigate("main_admin") {
                                     popUpTo("login") { inclusive = true }

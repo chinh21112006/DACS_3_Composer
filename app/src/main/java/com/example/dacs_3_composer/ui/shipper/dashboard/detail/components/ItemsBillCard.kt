@@ -10,7 +10,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -19,117 +18,112 @@ import com.example.dacs_3_composer.data.model.OrderItem
 
 @Composable
 fun ItemsBillCard(
-    orderId: String?,
-    items: List<OrderItem>?, // Chuyển sang dạng Nullable để tránh lỗi dữ liệu từ Firebase trống
-    totalPrice: Double?
+    orderId: String,
+    items: List<OrderItem>,
+    totalPrice: Double,
+    shippingFee: Double, // 🌟 ĐÃ BỔ SUNG: Tham số nhận tiền ship động từ màn hình cha
+    modifier: Modifier = Modifier
 ) {
-    // Xử lý dữ liệu an toàn phòng hờ Firebase trả về null
-    val safeOrderId = orderId ?: ""
-    val safeItems = items ?: emptyList()
-    val safeTotalPrice = totalPrice ?: 0.0
+    // Tính toán tiền món ăn thực tế = Tổng hóa đơn - Tiền ship
+    val totalDishPrice = (totalPrice - shippingFee).coerceAtLeast(0.0)
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Tiêu đề Thẻ Hóa Đơn
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Chi tiết thực đơn",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
-                )
-                Text(
-                    text = if (safeOrderId.isNotBlank()) "#${safeOrderId.takeLast(6).uppercase()}" else "",
-                    fontSize = 12.sp,
-                    color = Color(0xFF6B7280)
-                )
-            }
+            Text(
+                text = "Chi tiết đơn hàng",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF111827)
+            )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Kiểm tra danh sách món ăn: Nếu trống thì hiển thị trạng thái thay vì crash UI
-            if (safeItems.isEmpty()) {
-                Text(
-                    text = "Không có thông tin chi tiết món ăn hoặc đang tải...",
-                    fontSize = 13.sp,
-                    color = Color.Gray,
+            // Danh sách các món ăn trong hóa đơn
+            items.forEach { item ->
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 12.dp)
-                )
-            } else {
-                // Vòng lặp hiển thị danh sách món ăn động từ Firestore
-                safeItems.forEach { item ->
-                    FoodBillItem(
-                        name = item.name.ifBlank { "Món ăn không tên" },
-                        note = "Số lượng: x${item.quantity}",
-                        price = "${String.format("%,.0f", item.price)}đ"
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = item.name,
+                            fontSize = 14.sp,
+                            color = Color(0xFF374151),
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Số lượng: ${item.quantity}",
+                            fontSize = 12.sp,
+                            color = Color(0xFF6B7280)
+                        )
+                    }
+                    Text(
+                        text = "${String.format("%,.0f", item.price * item.quantity)}đ",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF111827)
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
 
-            HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(color = Color(0xFFF3F4F6))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Tổng kết số tiền hóa đơn cuối cùng
+            // 1. Dòng hiển thị tổng tiền các món ăn
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "Tổng tiền món", fontSize = 13.sp, color = Color(0xFF6B7280))
+                Text(text = "${String.format("%,.0f", totalDishPrice)}đ", fontSize = 13.sp, color = Color(0xFF374151))
+            }
+
+            // 2. Dòng hiển thị tiền ship lấy động từ Database (Thay vì viết cứng 20k)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "Phí vận chuyển (Shipper nhận)", fontSize = 13.sp, color = Color(0xFF6B7280))
+                Text(
+                    text = "${String.format("%,.0f", shippingFee)}đ", // 🌟 Hiển thị chuẩn xác số tiền từ DB
+                    fontSize = 13.sp,
+                    color = Color(0xFF2563EB), // Đổi màu xanh làm điểm nhấn doanh thu
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(color = Color(0xFFE5E7EB))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 3. Dòng Thành tiền cuối cùng khách phải trả
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Tổng thanh toán",
+                    text = "Khách thanh toán",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
                 )
                 Text(
-                    text = "${String.format("%,.0f", safeTotalPrice)}đ",
+                    text = "${String.format("%,.0f", totalPrice)}đ",
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2563EB)
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFFEF4444) // Màu đỏ nổi bật tổng tiền cần thu hộ/thanh toán
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun FoodBillItem(name: String, note: String, price: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Khối hình vuông giả lập ảnh món ăn (bạn có thể thay bằng AsyncImage coil sau này)
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFFE2E8F0))
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-
-        // Tên và số lượng món ăn
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(text = note, fontSize = 11.sp, color = Color(0xFF6B7280))
-        }
-
-        // Giá tiền của món ăn
-        Text(text = price, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF2563EB))
     }
 }

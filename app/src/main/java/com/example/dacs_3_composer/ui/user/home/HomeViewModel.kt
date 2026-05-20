@@ -66,9 +66,31 @@ class HomeViewModel : ViewModel() {
             firestore.collection("dishes")
                 .whereEqualTo("available", true)
                 .addSnapshotListener { snapshot, error ->
-                    if (error != null) return@addSnapshotListener
+                    if (error != null) {
+                        Log.e("HomeViewModel", "Lỗi addSnapshotListener: ", error)
+                        return@addSnapshotListener
+                    }
                     if (snapshot != null) {
-                        val dishList = snapshot.toObjects(Dish::class.java)
+                        val dishList = mutableListOf<Dish>()
+                        for (document in snapshot) {
+                            try {
+                                // Lấy dữ liệu thủ công cực kỳ an toàn
+                                val dish = Dish(
+                                    id = document.id,
+                                    name = document.getString("name") ?: "",
+                                    // Chấp nhận cả trường hợp trên Firebase là số nguyên hay số thực
+                                    price = document.getDouble("price") ?: document.getLong("price")?.toDouble() ?: 0.0,
+                                    imageUrl = document.getString("imageUrl") ?: "",
+                                    category = document.getString("category") ?: "Tất cả",
+                                    description = document.getString("description") ?: "",
+                                    available = document.getBoolean("available") ?: true,
+                                    restaurantId = document.getString("restaurantId") ?: ""
+                                )
+                                dishList.add(dish)
+                            } catch (e: Exception) {
+                                Log.e("HomeViewModel", "Lỗi convert món ăn ID ${document.id}: ", e)
+                            }
+                        }
                         _deliciousDishes.value = dishList
                     }
                 }
@@ -83,9 +105,22 @@ class HomeViewModel : ViewModel() {
             .addOnSuccessListener { result ->
                 val list = mutableListOf<RestaurantDetail>()
                 for (document in result) {
-                    val restaurant = document.toObject(RestaurantDetail::class.java)
-                    restaurant.id = document.id
-                    list.add(restaurant)
+                    try {
+                        // Lấy dữ liệu thủ công để tránh xung đột kiểu dữ liệu Double/Long
+                        val restaurant = RestaurantDetail(
+                            id = document.id,
+                            name = document.getString("name") ?: "",
+                            rating = document.getDouble("rating") ?: document.getLong("rating")?.toDouble() ?: 0.0,
+                            address = document.getString("address") ?: "",
+                            deliveryTime = document.getString("deliveryTime") ?: "0 min",
+                            distance = document.getString("distance") ?: "0 km",
+                            description = document.getString("description") ?: "",
+                            coverImage = document.getString("coverImage") ?: ""
+                        )
+                        list.add(restaurant)
+                    } catch (e: Exception) {
+                        Log.e("HomeViewModel", "Lỗi convert nhà hàng ID ${document.id}: ", e)
+                    }
                 }
                 _restaurantsList.value = list
                 _isLoading.value = false

@@ -21,19 +21,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun StatsMiniCardRow() {
+fun StatsMiniCardRow(
+    completedCount: String, // 🌟 Thêm tham số nhận dữ liệu động
+    activeCount: String     // 🌟 Thêm tham số nhận dữ liệu động
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         MiniStatCard(
-            value = "18",
+            value = completedCount, // 🌟 Thay đổi giá trị cứng thành biến động
             label = "HOÀN THÀNH",
             icon = Icons.Default.Check,
             modifier = Modifier.weight(1f)
         )
         MiniStatCard(
-            value = "2",
+            value = activeCount,    // 🌟 Thay đổi giá trị cứng thành biến động
             label = "ĐANG GIAO",
             icon = Icons.Default.Moped,
             modifier = Modifier.weight(1f)

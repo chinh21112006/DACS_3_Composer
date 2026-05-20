@@ -3,8 +3,8 @@ package com.example.dacs_3_composer.data.model
 enum class OrderStatus(val displayName: String) {
     PENDING("Chờ xác nhận"),
     PROCESSING("Đang nấu"),
-    ACCEPTED("Chờ shipper"), // 🌟 BỔ SUNG: Nhà hàng nấu xong, đang đợi tài xế đến lấy
-    SHIPPING("Đang giao"),   // Shipper đã lấy hàng và đang trên đường đi giao
+    ACCEPTED("Chờ shipper"),
+    SHIPPING("Đang giao"),
     COMPLETED("Đã hoàn thành"),
     CANCELLED("Đã hủy")
 }
@@ -24,7 +24,8 @@ data class Order(
 
     // Cấu trúc tiền chuẩn giống hệt Firebase Console
     var totalDishPrice: Double = 0.0,    // Giá gốc tổng các món ăn
-    var totalPrice: Double = 0.0,        // Số tiền cuối cùng sau giảm giá (Dùng để hiển thị lên UI)
+    var shippingFee: Double = 20000.0,   // 🌟 BỔ SUNG: Tiền ship cố định 20k cho mỗi đơn hàng
+    var totalPrice: Double = 0.0,        // Số tiền cuối cùng Khách trả = totalDishPrice + shippingFee
 
     // 2. Thông tin của KHÁCH HÀNG (Người mua)
     var userId: String = "",
@@ -45,7 +46,7 @@ data class Order(
     // Constructor không tham số bắt buộc để Firebase Firestore ánh xạ (mapping) tự động
     constructor() : this(
         id = "", time = "", status = "PENDING",
-        totalDishPrice = 0.0, totalPrice = 0.0,
+        totalDishPrice = 0.0, shippingFee = 20000.0, totalPrice = 0.0, // 🌟 Cập nhật tại đây
         userId = "", customerName = "", customerPhone = "", customerAddress = "",
         restaurantId = "", restaurantName = "",
         shipperId = "", items = emptyList()

@@ -23,10 +23,8 @@ class OrderViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    // 🌟 BỘ NHỚ ĐỆM: Lưu trữ [restaurantId -> Link ảnh mạng của quán]
     val restaurantImages = mutableStateMapOf<String, String>()
 
-    // 🌟 THÊM MỚI: Biến lưu trữ thông tin đơn hàng đang được theo dõi chi tiết
     private val _currentTrackingOrder = MutableStateFlow<Order?>(null)
     val currentTrackingOrder: StateFlow<Order?> = _currentTrackingOrder.asStateFlow()
 
@@ -50,29 +48,46 @@ class OrderViewModel : ViewModel() {
                 if (snapshot != null) {
                     val allOrders = snapshot.toObjects(Order::class.java)
 
-                    // 1. Nhóm chỉ chờ quán bấm xác nhận
-                    val pending = allOrders.filter { it.status == "PENDING" }.sortedByDescending { it.time }
-
-                    // 2. Nhóm đang làm món hoặc đang đi giao trên đường
+                    // 🎯 ĐÃ CẬP NHẬT: Gom tất cả trạng thái của đơn đang xử lý vào ongoing
                     val ongoing = allOrders.filter {
-                        it.status == "PROCESSING" || it.status == "SHIPPING"
+                        it.status == "PENDING" ||
+                                it.status == "PROCESSING" ||
+                                it.status == "ACCEPTED" ||
+                                it.status == "SHIPPING"
                     }.sortedByDescending { it.time }
 
-                    // 3. Nhóm lịch sử hoàn tất
+                    // 🎯 ĐÃ CẬP NHẬT: Nhóm lịch sử chỉ chứa đơn đã xong hoặc đã hủy hẳn
                     val history = allOrders.filter {
                         it.status == "COMPLETED" || it.status == "CANCELLED"
                     }.sortedByDescending { it.time }
 
-                    // Cập nhật StateFlow tương ứng
-                    _ongoingOrders.value = ongoing // Lưu trữ đơn "Đang đến"
-                    _historyOrders.value = history
+                    allOrders.forEach { order ->
+                        if (order.restaurantId.isNotBlank() && !restaurantImages.containsKey(order.restaurantId)) {
+                            fetchRestaurantImage(order.restaurantId)
+                        }
+                    }
 
-                    // Tạo thêm một StateFlow hoặc tận dụng State có sẵn (xem Bước 3)
+                    _ongoingOrders.value = ongoing
+                    _historyOrders.value = history
                 }
             }
     }
 
-    // 🌟 THÊM MỚI: Hàm lắng nghe Realtime cho màn hình Theo dõi đơn hàng
+    fun cancelOrder(orderId: String, onSuccess: () -> Unit, onFailure: (String) -> Unit) {
+        if (orderId.isBlank()) return
+
+        firestore.collection("orders").document(orderId)
+            .update("status", "CANCELLED")
+            .addOnSuccessListener {
+                Log.d("OrderViewModel", "Hủy đơn hàng thành công ID: $orderId")
+                onSuccess()
+            }
+            .addOnFailureListener { e ->
+                Log.e("OrderViewModel", "Hủy đơn hàng thất bại: ${e.message}")
+                onFailure(e.message ?: "Lỗi hệ thống khi hủy đơn")
+            }
+    }
+
     fun observeOrderDetails(orderId: String) {
         if (orderId.isBlank()) return
 

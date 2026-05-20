@@ -17,22 +17,29 @@ import androidx.compose.ui.unit.sp
 import com.example.dacs_3_composer.data.model.Order
 
 @Composable
-fun AvailableOrderCard(
-    order: com.example.dacs_3_composer.data.model.Order,
-    onCardClick: () -> Unit, // 👈 Thêm dòng này để xử lý sự kiện click vào thân Card
+fun DashboardAvailableOrderCard( // 🌟 ĐÃ ĐỔI TÊN HÀM: Tránh hoàn toàn lỗi Conflicting overloads
+    order: Order,
+    onCardClick: () -> Unit,
     onAcceptClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCardClick() }, // 🌟 Click vào bất cứ đâu trên Card để xem chi tiết
+            .clickable { onCardClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(text = "#ĐƠN: ${order.id.takeLast(6).uppercase()}", fontWeight = FontWeight.Bold, color = Color(0xFF2159BC))
-                Text(text = "${String.format("%,.0f", order.totalPrice)}đ", fontWeight = FontWeight.Bold, color = Color(0xFF2159BC), fontSize = 16.sp)
+
+                // 🌟 ĐÃ CẬP NHẬT: Hiển thị order.shippingFee (20k) thay vì tổng tiền món ăn order.totalPrice
+                Text(
+                    text = "${String.format("%,.0f", order.shippingFee)}đ",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF2159BC),
+                    fontSize = 16.sp
+                )
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = "📍 Nhà hàng: ${order.restaurantName}", fontSize = 14.sp, fontWeight = FontWeight.Medium)
@@ -40,7 +47,7 @@ fun AvailableOrderCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
-                onClick = onAcceptClick, // Bấm nút này để kích hoạt tiến trình Firebase nhận đơn
+                onClick = onAcceptClick,
                 modifier = Modifier.fillMaxWidth().height(40.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2159BC)),
                 shape = RoundedCornerShape(8.dp)

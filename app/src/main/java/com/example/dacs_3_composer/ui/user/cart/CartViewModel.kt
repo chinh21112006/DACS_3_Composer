@@ -49,6 +49,23 @@ class CartViewModel : ViewModel() {
             return
         }
 
+        // 🎯 ĐÃ SỬA: Lấy ID nhà hàng an toàn nhất. Nếu tham số truyền vào từ View bị rỗng,
+        // thì lấy thẳng từ biến currentRestaurantId đang lưu trong ViewModel, nếu vẫn rỗng thì lấy từ món ăn đầu tiên.
+        val finalRestaurantId = if (restaurantId.isNotBlank() && restaurantId != "RES_DEFAULT") {
+            restaurantId
+        } else if (this.currentRestaurantId.isNotBlank()) {
+            this.currentRestaurantId
+        } else {
+            cartItems.firstOrNull()?.dish?.restaurantId ?: ""
+        }
+
+        // Nếu cố gắng tìm mọi cách mà vẫn rỗng, báo lỗi ngay không cho đẩy lên Firestore để tránh lỗi dữ liệu
+        if (finalRestaurantId.isBlank()) {
+            Log.e("CartViewModel", "Đặt hàng thất bại: Không tìm thấy ID nhà hàng từ giỏ hàng!")
+            onFailure("Lỗi hệ thống: Không xác định được ID nhà hàng!")
+            return
+        }
+
         val db = FirebaseFirestore.getInstance()
         val orderId = db.collection("orders").document().id
 
@@ -63,28 +80,24 @@ class CartViewModel : ViewModel() {
 
         val currentTime = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
 
-        // 🎯 ĐÃ SỬA: Map chuẩn biến theo đúng Model kết nối với Firebase của bạn
         val newOrder = Order(
             id = orderId,
             time = currentTime,
             status = "PENDING",
-            totalDishPrice = totalDishPrice, // Gán giá gốc món ăn
-            totalPrice = finalTotal,         // Gán tổng tiền thanh toán sau giảm giá
+            totalDishPrice = totalDishPrice,
+            totalPrice = finalTotal,
+            shippingFee = shippingFee,
 
-            // Khách hàng
             userId = uid,
             customerName = customerName,
             customerPhone = customerPhone,
             customerAddress = customerAddress,
 
-            // Nhà hàng
-            restaurantId = restaurantId,
-            restaurantName = restaurantName,
+            // Gán ID nhà hàng đã được bóc tách an toàn ở trên
+            restaurantId = finalRestaurantId,
+            restaurantName = restaurantName.ifBlank { this.currentRestaurantName }.ifBlank { "Nhà hàng đối tác" },
 
-            // Shipper
             shipperId = "",
-
-            // Danh sách món ăn
             items = orderItemsList
         )
 
@@ -100,7 +113,13 @@ class CartViewModel : ViewModel() {
             }
     }
 
+    // 🎯 ĐÃ SỬA: Tự động cập nhật thông tin nhà hàng dựa theo món ăn được thêm vào giỏ
     fun addToCart(dish: DishItem) {
+        // 🎯 LUÔN LUÔN CẬP NHẬT: Đảm bảo lấy ID nhà hàng từ món ăn mới nhất vừa được thêm
+        if (dish.restaurantId.isNotBlank()) {
+            this.currentRestaurantId = dish.restaurantId
+        }
+
         val existingItem = cartItems.find { it.dish.id == dish.id }
 
         if (existingItem != null) {
@@ -109,7 +128,10 @@ class CartViewModel : ViewModel() {
         } else {
             cartItems.add(CartItem(dish = dish, quantity = 1))
         }
+
+        Log.d("CartViewModel", "Đã thêm món ${dish.name}. ID Nhà hàng hiện tại trong giỏ: ${this.currentRestaurantId}")
     }
+
 
     fun updateDeliveryInfo(newName: String, newPhone: String, newAddress: String) {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
@@ -130,6 +152,12 @@ class CartViewModel : ViewModel() {
                 )
                 db.collection("users").document(uid)
                     .update("savedAddresses", FieldValue.arrayUnion(addressMap))
+                    .addOnSuccessListener {
+                        Log.d("CartViewModel", "Đã cập nhật mảng savedAddresses thành công")
+                    }
+            }
+            .addOnFailureListener { e ->
+                Log.e("CartViewModel", "Lỗi cập nhật thông tin User: ${e.message}")
             }
     }
 
@@ -141,6 +169,10 @@ class CartViewModel : ViewModel() {
             cartItems[index] = existingItem.copy(quantity = existingItem.quantity - 1)
         } else {
             cartItems.removeAt(index)
+            if (cartItems.isEmpty()) {
+                currentRestaurantId = ""
+                currentRestaurantName = ""
+            }
         }
     }
 
@@ -150,5 +182,7 @@ class CartViewModel : ViewModel() {
 
     fun clearCart() {
         cartItems.clear()
+        currentRestaurantId = ""
+        currentRestaurantName = ""
     }
 }

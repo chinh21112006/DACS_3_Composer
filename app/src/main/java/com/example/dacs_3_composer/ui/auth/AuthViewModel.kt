@@ -29,7 +29,6 @@ class AuthViewModel : ViewModel() {
     // ==========================================
     fun loginWithGoogle(context: Context) {
         _authState.value = "Đang kết nối với Google..."
-
         val credentialManager = CredentialManager.create(context)
 
         val googleIdOption = GetGoogleIdOption.Builder()
@@ -58,22 +57,20 @@ class AuthViewModel : ViewModel() {
                                 val email = auth.currentUser?.email ?: ""
 
                                 if (uid != null) {
-                                    // 🌟 NÂNG CẤP TẠI ĐÂY: Kiểm tra xem User đăng nhập bằng Google này đã có Document trên Firestore chưa?
                                     db.collection("users").document(uid).get()
                                         .addOnSuccessListener { document ->
                                             if (document != null && document.exists()) {
-                                                // Đã có tài khoản từ trước -> Tiến hành check quyền để điều hướng
                                                 val role = document.getString("role") ?: "user"
                                                 triggerLoginSuccessByRole(role)
                                             } else {
-                                                // Tài khoản Google mới tinh lần đầu đăng nhập -> Tạo Document mặc định giống hệt đăng ký bằng mật khẩu
                                                 val userMap = hashMapOf(
                                                     "email" to email,
-                                                    "role" to "user" // Mặc định khi mới tạo là user thường
+                                                    "role" to "user"
                                                 )
                                                 db.collection("users").document(uid).set(userMap)
                                                     .addOnSuccessListener {
-                                                        _authState.value = "Đăng nhập thành công với quyền User!"
+                                                        // 🌟 ĐÃ SỬA: Gọi hàm tập trung để sinh chuỗi khớp với MainActivity
+                                                        triggerLoginSuccessByRole("user")
                                                     }
                                                     .addOnFailureListener { e ->
                                                         _authState.value = "Lỗi tạo thông tin dữ liệu Google: ${e.message}"
@@ -147,10 +144,10 @@ class AuthViewModel : ViewModel() {
                             .addOnSuccessListener { document ->
                                 if (document != null && document.exists()) {
                                     val role = document.getString("role") ?: "user"
-                                    // 🌟 NÂNG CẤP TẠI ĐÂY: Gọi hàm xử lý phân quyền tập trung
                                     triggerLoginSuccessByRole(role)
                                 } else {
-                                    _authState.value = "Đăng nhập thành công với quyền User!"
+                                    // 🌟 ĐÃ SỬA: Đồng bộ chuỗi đăng nhập User thành công
+                                    triggerLoginSuccessByRole("user")
                                 }
                             }
                             .addOnFailureListener { e ->

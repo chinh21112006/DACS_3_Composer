@@ -30,7 +30,7 @@ fun AvailableOrderCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            // Hàng 1: Mã đơn & Badge nhãn màu xám/nhạt
+            // Hàng 1: Mã đơn & Badge nhãn
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -72,7 +72,7 @@ fun AvailableOrderCard(
             // Dòng thời gian dự kiến
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    painter = painterResource(id = android.R.drawable.ic_menu_recent_history), // Bạn có thể thay bằng icon đồng hồ tùy chọn
+                    painter = painterResource(id = android.R.drawable.ic_menu_recent_history),
                     contentDescription = null,
                     tint = Color.Gray,
                     modifier = Modifier.size(16.dp)
@@ -85,7 +85,7 @@ fun AvailableOrderCard(
             HorizontalDivider(color = Color(0xFFF3F4F6))
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Hàng đáy: Tiền ship & Nút Cập nhật (Viền xanh) giống thiết kế
+            // Hàng đáy: Tiền ship & Nút Cập nhật
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -94,7 +94,7 @@ fun AvailableOrderCard(
                 Column {
                     Text(text = "Tiền ship", fontSize = 11.sp, color = Color.Gray)
                     Text(
-                        text = "${String.format("%,.0f", order.totalPrice)}đ",
+                        text = "${String.format("%,.0f", order.shippingFee)}đ", // 🌟 ĐÃ SỬA: Đổi từ totalPrice sang shippingFee (20.000đ)
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF111827)

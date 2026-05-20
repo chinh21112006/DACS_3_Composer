@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import com.example.dacs_3_composer.ui.shipper.dashboard.ShipperViewModel
 import com.example.dacs_3_composer.ui.shipper.orders.components.ActiveDeliveryCard
 import com.example.dacs_3_composer.ui.shipper.orders.components.AvailableOrderCard
+import com.example.dacs_3_composer.ui.shipper.orders.components.HistoryOrderCard // Thêm Component mới
 
 @Composable
 fun ShipperOrdersScreen(
@@ -26,13 +27,13 @@ fun ShipperOrdersScreen(
 ) {
     val availableOrders by viewModel.availableOrders.collectAsState()
     val activeDeliveryOrder by viewModel.activeDeliveryOrder.collectAsState()
+    val historyOrders by viewModel.historyOrders.collectAsState() // 🌟 LẤY DỮ LIỆU LỊCH SỬ TỪ VIEWMODEL
 
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("Đang giao", "Lịch sử")
 
     Scaffold(
         topBar = {
-            // Thanh Topbar hiển thị tên Shipper và chuông thông báo độc lập
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -67,7 +68,7 @@ fun ShipperOrdersScreen(
 
                 IconButton(onClick = { /* Xử lý thông báo */ }) {
                     Icon(
-                        painter = painterResource(id = android.R.drawable.ic_menu_my_calendar), // Thay bằng icon chuông của bạn
+                        painter = painterResource(id = android.R.drawable.ic_menu_my_calendar),
                         contentDescription = "Notification",
                         tint = Color(0xFF2563EB)
                     )
@@ -97,7 +98,7 @@ fun ShipperOrdersScreen(
                 )
             }
 
-            // Thanh chuyển đổi Tab "Đang giao" và "Lịch sử" trùng khớp bản vẽ
+            // Thanh chuyển đổi Tab
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.Transparent,
@@ -121,26 +122,24 @@ fun ShipperOrdersScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Nội dung bên trong danh sách
+            // Nội dung bên trong danh sách theo từng Tab
+            // --- TAB 1: ĐANG GIAO ---
             if (selectedTab == 0) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // 1. Render đơn hàng chủ chốt đang đi giao
-                    activeDeliveryOrder?.let { activeOrder ->
+                    // CHỈ hiển thị nếu có đơn hàng đang trong tiến trình giao của chính Shipper này
+                    if (activeDeliveryOrder != null) {
                         item {
                             ActiveDeliveryCard(
-                                order = activeOrder,
-                                onDetailClick = { onNavigateToDetail(activeOrder.id) }
+                                order = activeDeliveryOrder!!,
+                                onDetailClick = { onNavigateToDetail(activeDeliveryOrder!!.id) }
                             )
                         }
-                    }
-
-                    // 2. Render danh sách các đơn hàng vệ tinh hoặc đơn hàng chờ khác
-                    val poolOrders = availableOrders.filter { it.id != activeDeliveryOrder?.id }
-                    if (poolOrders.isEmpty() && activeDeliveryOrder == null) {
+                    } else {
+                        // Nếu activeDeliveryOrder bằng null (chưa bấm nhận đơn nào hoặc đã giao xong)
                         item {
                             Box(
                                 modifier = Modifier
@@ -148,22 +147,34 @@ fun ShipperOrdersScreen(
                                     .padding(32.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = "Không có đơn hàng nào trong tiến trình.", color = Color.Gray, fontSize = 14.sp)
+                                Text(
+                                    text = "Bạn chưa nhận đơn hàng nào trong tiến trình.",
+                                    color = Color.Gray,
+                                    fontSize = 14.sp
+                                )
                             }
-                        }
-                    } else {
-                        items(poolOrders) { order ->
-                            AvailableOrderCard(
-                                order = order,
-                                onUpdateClick = { onNavigateToDetail(order.id) }
-                            )
                         }
                     }
                 }
             } else {
-                // Tab lịch sử
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = "Lịch sử đơn hàng trống", color = Color.Gray)
+                // --- TAB 2: LỊCH SỬ ĐƠN GIAO (ĐÃ ĐƯỢC SỬA) ---
+                if (historyOrders.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(text = "Lịch sử đơn hàng trống", color = Color.Gray, fontSize = 14.sp)
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(historyOrders, key = { it.id }) { historicalOrder ->
+                            HistoryOrderCard(
+                                order = historicalOrder,
+                                onCardClick = { onNavigateToDetail(historicalOrder.id) } // Vẫn xem được chi tiết đơn cũ nếu cần
+                            )
+                        }
+                    }
                 }
             }
         }

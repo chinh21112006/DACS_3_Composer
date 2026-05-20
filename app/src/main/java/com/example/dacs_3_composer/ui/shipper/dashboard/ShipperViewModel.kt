@@ -14,7 +14,11 @@ import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map // 🌟 THÊM IMPORT ĐỂ MAP DỮ LIỆU ĐỘNG
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class ShipperViewModel : ViewModel() {
 
@@ -32,8 +36,30 @@ class ShipperViewModel : ViewModel() {
     private val _activeDeliveryOrder = MutableStateFlow<Order?>(null)
     val activeDeliveryOrder: StateFlow<Order?> = _activeDeliveryOrder.asStateFlow()
 
+    // Danh sách lịch sử đơn hàng (Đã hoàn thành hoặc Đã hủy) của Shipper này
+    private val _historyOrders = MutableStateFlow<List<Order>>(emptyList())
+    val historyOrders: StateFlow<List<Order>> = _historyOrders.asStateFlow()
+
+    // 🌟 DỮ LIỆU ĐỘNG 1: Tự động cộng dồn 'shippingFee' từ database của các đơn COMPLETED trong hôm nay
+    val todayIncomeStr: StateFlow<String> = _historyOrders.map { list ->
+        val today = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+
+        val totalToday = list.filter { order ->
+            order.status == OrderStatus.COMPLETED.name && order.time.contains(today)
+        }.sumOf { order -> order.shippingFee } // ✅ ĐÃ SỬA: Lấy giá trị thực tế của từng đơn từ DB
+
+        "${String.format("%,.0f", totalToday)}đ"
+    }.toStateFlow(emptyList<Order>().run { "${String.format("%,.0f", 0.0)}đ" })
+
+    // 🌟 DỮ LIỆU ĐỘNG 2: Tự động đếm tổng số đơn hoàn thành (COMPLETED) từ trước tới nay
+    val completedOrdersCountStr: StateFlow<String> = _historyOrders.map { list ->
+        val count = list.count { it.status == OrderStatus.COMPLETED.name }
+        count.toString()
+    }.toStateFlow("0")
+
     private var availableOrdersListener: ListenerRegistration? = null
     private var activeOrderListener: ListenerRegistration? = null
+    private var historyOrdersListener: ListenerRegistration? = null
 
     var isLoading by mutableStateOf(false)
         private set
@@ -44,6 +70,7 @@ class ShipperViewModel : ViewModel() {
     init {
         observeShipperStatus()
         listenToActiveDelivery()
+        listenToHistoryOrders()
     }
 
     private fun observeShipperStatus() {
@@ -75,7 +102,7 @@ class ShipperViewModel : ViewModel() {
         if (availableOrdersListener != null) return
 
         availableOrdersListener = firestore.collection("orders")
-            .whereEqualTo("status", OrderStatus.ACCEPTED.name) // ✅ ĐÃ SỬA: Lọc trạng thái ACCEPTED
+            .whereEqualTo("status", OrderStatus.ACCEPTED.name)
             .addSnapshotListener { snapshot, error ->
                 if (snapshot != null) {
                     val list = mutableListOf<Order>()
@@ -98,12 +125,34 @@ class ShipperViewModel : ViewModel() {
             .whereEqualTo("shipperId", uid)
             .addSnapshotListener { snapshot, error ->
                 if (snapshot != null) {
-                    // ✅ ĐÃ SỬA: Lấy đơn thuộc tài xế này đang ở trạng thái chuẩn bị giao (ACCEPTED) hoặc đang giao (SHIPPING)
                     val activeOrder = snapshot.documents
                         .mapNotNull { doc -> doc.toObject(Order::class.java)?.apply { id = doc.id } }
                         .firstOrNull { it.status == "ACCEPTED" || it.status == "SHIPPING" }
 
                     _activeDeliveryOrder.value = activeOrder
+                }
+            }
+    }
+
+    // 4. LẮNG NGHE LỊCH SỬ ĐƠN GIAO THÀNH CÔNG HOẶC ĐÃ HỦY
+    private fun listenToHistoryOrders() {
+        val uid = currentShipperId.ifBlank { return }
+
+        historyOrdersListener = firestore.collection("orders")
+            .whereEqualTo("shipperId", uid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("ShipperVM", "Lỗi tải lịch sử đơn hàng: ", error)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    val list = snapshot.documents
+                        .mapNotNull { doc -> doc.toObject(Order::class.java)?.apply { id = doc.id } }
+                        .filter { it.status == OrderStatus.COMPLETED.name || it.status == OrderStatus.CANCELLED.name }
+                        .sortedByDescending { it.time }
+
+                    _historyOrders.value = list
                 }
             }
     }
@@ -134,9 +183,20 @@ class ShipperViewModel : ViewModel() {
         _availableOrders.value = emptyList()
     }
 
+    // Extension function hỗ trợ chuyển đổi Flow sang StateFlow một cách an toàn trong ViewModel
+    private fun <T> kotlinx.coroutines.flow.Flow<T>.toStateFlow(initialValue: T): StateFlow<T> {
+        val flow = this
+        val mutableStateFlow = MutableStateFlow(initialValue)
+        viewModelScope.launch {
+            flow.collect { mutableStateFlow.value = it }
+        }
+        return mutableStateFlow.asStateFlow()
+    }
+
     override fun onCleared() {
         super.onCleared()
         stopListeningAvailableOrders()
         activeOrderListener?.remove()
+        historyOrdersListener?.remove()
     }
 }

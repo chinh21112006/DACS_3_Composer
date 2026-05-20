@@ -14,17 +14,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.dacs_3_composer.ui.user.cart.CartViewModel
 import com.example.dacs_3_composer.ui.user.home.HomeViewModel
 
-//              Chứa vòng lặp items() để xếp các món ăn thành hàng ngang.
 @Composable
-fun DeliciousDishSection(navController: NavController, viewModel: HomeViewModel = viewModel()) {
+fun DeliciousDishSection(
+    navController: NavController,
+    viewModel: HomeViewModel = viewModel(),
+    cartViewModel: CartViewModel = viewModel() // 🌟 TÍCH HỢP: Nhận CartViewModel từ HomeScreen truyền xuống
+) {
     val allListDishes by viewModel.deliciousDishes.collectAsState()
-
     val row1Dishes = allListDishes
 
     Column(modifier = Modifier.padding(vertical = 12.dp)) {
-        // Tiêu đề Section giống hệt ảnh mẫu của bạn
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -43,15 +45,18 @@ fun DeliciousDishSection(navController: NavController, viewModel: HomeViewModel 
         }
 
         Spacer(modifier = Modifier.height(12.dp))
-        // --- HÀNG 1 ---
+
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(bottom = 12.dp)
         ) {
             items(row1Dishes) { dish ->
-                // Đổi cấu trúc DeliciousDishItem nhận vào đối tượng Dish từ database luôn
                 DeliciousDishItem(dish = dish, onClick = {
-//                    Chuyển màn hình và đưa id nhà hàng
+                    // 🎯 ĐỒNG BỘ DỮ LIỆU: Lưu vết ID nhà hàng của món ăn này vào hệ thống Giỏ hàng
+                    cartViewModel.currentRestaurantId = dish.restaurantId
+                    cartViewModel.currentRestaurantName = "Nhà hàng đối tác" // Tạm gán mặc định nếu cấu trúc Dish chưa lưu kèm chuỗi tên Quán
+
+                    // Chuyển màn hình và đưa id nhà hàng
                     navController.navigate("restaurant_detail/${dish.restaurantId}")
                 })
             }

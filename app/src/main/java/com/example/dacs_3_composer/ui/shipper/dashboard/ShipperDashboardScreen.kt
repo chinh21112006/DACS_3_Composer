@@ -24,6 +24,10 @@ fun ShipperDashboardScreen(
     val availableOrders by shipperViewModel.availableOrders.collectAsState()
     val activeDeliveryOrder by shipperViewModel.activeDeliveryOrder.collectAsState()
 
+    // 🌟 LẤY DỮ LIỆU ĐỘNG TỰ ĐỘNG TÍNH TOÁN TỪ VIEWMODEL
+    val todayIncome by shipperViewModel.todayIncomeStr.collectAsState()
+    val completedCount by shipperViewModel.completedOrdersCountStr.collectAsState()
+
     val firestore = FirebaseFirestore.getInstance()
 
     Scaffold(
@@ -48,16 +52,21 @@ fun ShipperDashboardScreen(
                 )
             }
 
-            // 2. Thẻ thu nhập
+            // 2. Thẻ thu nhập thực tế
             item {
                 IncomeCard(
-                    todayIncome = "542.000đ",
-                    growthText = "+12% so với hôm qua"
+                    todayIncome = todayIncome, // 🌟 Đã truyền dữ liệu thật động ở đây
+                    growthText = "Thu nhập dựa trên đơn hoàn thành"
                 )
             }
 
-            // 3. Thống kê số đơn
-            item { StatsMiniCardRow() }
+            // 3. Thống kê số đơn thực tế
+            item {
+                StatsMiniCardRow(
+                    completedCount = completedCount, // 🌟 Truyền dữ liệu đếm đơn xuống row con
+                    activeCount = if (activeDeliveryOrder != null) "1" else "0"
+                )
+            }
 
             // THẾ TRẬN 1: TÀI XẾ ĐANG CÓ ĐƠN HÀNG ĐANG GIAO / ĐANG ĐẾN LẤY
             if (activeDeliveryOrder != null) {
@@ -74,7 +83,6 @@ fun ShipperDashboardScreen(
                     ActiveDeliveryDetailCard(
                         order = activeDeliveryOrder!!,
                         onUpdateStatusClick = { targetStatus ->
-                            // Cập nhật linh hoạt theo từng nấc trạng thái ngay tại trang chủ
                             firestore.collection("orders")
                                 .document(activeDeliveryOrder!!.id)
                                 .update("status", targetStatus)
@@ -94,7 +102,6 @@ fun ShipperDashboardScreen(
                     )
                 }
 
-                // ✅ ĐÃ SỬA: Gom cụm logic điều kiện chặt chẽ vào cấu trúc IF-ELSE tuần tự
                 if (!isReadyToWork) {
                     item {
                         Box(
@@ -105,7 +112,6 @@ fun ShipperDashboardScreen(
                         }
                     }
                 } else {
-                    // Khi đã bật App -> Kiểm tra xem kho đơn trống hay có đơn
                     if (availableOrders.isEmpty()) {
                         item {
                             Box(
@@ -117,7 +123,7 @@ fun ShipperDashboardScreen(
                         }
                     } else {
                         items(availableOrders, key = { it.id }) { order ->
-                            AvailableOrderCard(
+                            DashboardAvailableOrderCard(
                                 order = order,
                                 onCardClick = { onOrderClick(order.id) },
                                 onAcceptClick = { shipperViewModel.acceptOrder(order.id) }
@@ -125,7 +131,6 @@ fun ShipperDashboardScreen(
                         }
                     }
 
-                    // Chỉ hiển thị Banner bản đồ nhiệt khi tài xế đang bật App làm việc
                     item { HeatMapBanner() }
                 }
                 item { Spacer(modifier = Modifier.height(4.dp)) }

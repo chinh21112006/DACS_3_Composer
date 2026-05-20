@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.dacs_3_composer.ui.user.cart.CartViewModel
 import com.example.dacs_3_composer.ui.user.home.components.*
 import com.example.dacs_3_composer.ui.user.search.components.SectionTitle
 
@@ -23,9 +24,9 @@ fun HomeScreen(
     navController: NavController,
     modifier: Modifier = Modifier,
     onNavigateToSearch: (String) -> Unit,
-    homeViewModel: HomeViewModel = viewModel()
+    homeViewModel: HomeViewModel = viewModel(),
+    cartViewModel: CartViewModel = viewModel() // 🌟 TÍCH HỢP: Gọi chung một instance CartViewModel
 ) {
-    // 🌟 KHAI BÁO ĐÚNG VỊ TRÍ: Đặt việc thu thập StateFlow lên trên cùng của Composable
     val restaurants by homeViewModel.restaurantsList.collectAsState()
     val isLoading by homeViewModel.isLoading.collectAsState()
 
@@ -50,7 +51,7 @@ fun HomeScreen(
                     userAddress = homeViewModel.userAddress,
                     userImageUrl = homeViewModel.userImageUrl,
                     onSearchAction = { query ->
-                        onNavigateToSearch(query) // 🚀 Bắn từ khóa gõ được ra ngoài Navigation để chuyển màn hình
+                        onNavigateToSearch(query)
                     }
                 )
             }
@@ -59,7 +60,8 @@ fun HomeScreen(
             item { CategorySectionn() }
 
             item {
-                DeliciousDishSection(navController = navController)
+                // 🌟 TRUYỀN BIẾN: Đẩy tiếp CartViewModel xuống tầng dưới cho mục món ăn ngon
+                DeliciousDishSection(navController = navController, cartViewModel = cartViewModel)
             }
 
             item {
@@ -74,6 +76,10 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
+                            // 🎯 ĐỒNG BỘ DỮ LIỆU: Nạp ngay thông tin định danh của Quán ăn vào giỏ hàng trước khi chuyển màn
+                            cartViewModel.currentRestaurantId = restaurant.id
+                            cartViewModel.currentRestaurantName = restaurant.name
+
                             navController.navigate("restaurant_detail/${restaurant.id}")
                         }
                 ) {

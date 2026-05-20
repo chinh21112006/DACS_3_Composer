@@ -54,6 +54,9 @@ fun ShipperOrderDetailScreen(
                 val totalDishPrice = snapshot.getDouble("totalDishPrice") ?: (snapshot.getLong("totalDishPrice")?.toDouble() ?: 0.0)
                 val totalPrice = snapshot.getDouble("totalPrice") ?: (snapshot.getLong("totalPrice")?.toDouble() ?: 0.0)
 
+                // 🌟 ĐÃ BỔ SUNG: Đọc trường shippingFee từ Firestore (Nếu đơn cũ không có tự động nhận 20,000đ)
+                val shippingFee = snapshot.getDouble("shippingFee") ?: (snapshot.getLong("shippingFee")?.toDouble() ?: 20000.0)
+
                 val userId = snapshot.getString("userId") ?: ""
                 val customerName = snapshot.getString("customerName") ?: ""
                 val customerPhone = snapshot.getString("customerPhone") ?: ""
@@ -75,7 +78,9 @@ fun ShipperOrderDetailScreen(
 
                 orderState = Order(
                     id = id, time = time, status = status,
-                    totalDishPrice = totalDishPrice, totalPrice = totalPrice,
+                    totalDishPrice = totalDishPrice,
+                    shippingFee = shippingFee, // 🌟 ĐÃ CẬP NHẬT: Gán giá trị thực từ DB vào Model
+                    totalPrice = totalPrice,
                     userId = userId, customerName = customerName,
                     customerPhone = customerPhone, customerAddress = customerAddress,
                     restaurantId = restaurantId, restaurantName = restaurantName,
@@ -234,10 +239,13 @@ fun ShipperOrderDetailScreen(
                             customerAddress = order.customerAddress,
                             restaurantName = order.restaurantName
                         )
+
+                        // 🌟 ĐÃ CẬP NHẬT: Truyền thêm thuộc tính order.shippingFee vào component tính hóa đơn
                         ItemsBillCard(
                             orderId = order.id,
                             items = order.items,
                             totalPrice = order.totalPrice,
+                            shippingFee = order.shippingFee // Bạn nhớ mở component ItemsBillCard ra để nhận thêm biến Double này hiển thị lên nhé!
                         )
                         CustomerNoteBox(noteText = "Vui lòng gọi điện trước khi giao hoặc để lại quầy lễ tân nếu không liên lạc được.")
                     }
