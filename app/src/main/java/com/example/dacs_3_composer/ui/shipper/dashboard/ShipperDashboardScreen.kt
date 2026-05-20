@@ -13,25 +13,38 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dacs_3_composer.ui.shipper.dashboard.components.*
+import com.example.dacs_3_composer.ui.shipper.profile.ShipperProfileViewModel // 🎯 IMPORT VIEWMODEL PROFILE
 import com.google.firebase.firestore.FirebaseFirestore
 
 @Composable
 fun ShipperDashboardScreen(
     onOrderClick: (String) -> Unit,
-    shipperViewModel: ShipperViewModel = viewModel()
+    shipperViewModel: ShipperViewModel = viewModel(),
+    profileViewModel: ShipperProfileViewModel = viewModel() // 🎯 INJECT THÊM VIEWMODEL PROFILE
 ) {
     val isReadyToWork by shipperViewModel.isReadyToWork.collectAsState()
     val availableOrders by shipperViewModel.availableOrders.collectAsState()
     val activeDeliveryOrder by shipperViewModel.activeDeliveryOrder.collectAsState()
 
-    // 🌟 LẤY DỮ LIỆU ĐỘNG TỰ ĐỘNG TÍNH TOÁN TỪ VIEWMODEL
+    // 🌟 LẤY DỮ LIỆU ĐỘNG TỰ ĐỘNG TÍNH TOÁN TỪ VIEWMODEL GỐC
     val todayIncome by shipperViewModel.todayIncomeStr.collectAsState()
     val completedCount by shipperViewModel.completedOrdersCountStr.collectAsState()
 
+    // 🎯 LẤY STATE USER THỰC TẾ ĐỂ HIỂN THỊ TÊN & AVATAR
+    val user by profileViewModel.user.collectAsState()
+
     val firestore = FirebaseFirestore.getInstance()
 
+    // 🎯 TỰ ĐỘNG REFRESH THÔNG TIN TÀI XẾ MỖI KHI VÀO LẠI TAB TRANG CHỦ
+    LaunchedEffect(Unit) {
+        profileViewModel.loadProfile()
+    }
+
     Scaffold(
-        topBar = { ShipperDashboardTopBar() },
+        topBar = {
+            // 🎯 TRUYỀN USER THẬT VÀO TOPBAR
+            ShipperDashboardTopBar(user = user)
+        },
         containerColor = Color(0xFFF8F9FA)
     ) { innerPadding ->
         LazyColumn(

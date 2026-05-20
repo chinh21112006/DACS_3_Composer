@@ -126,7 +126,11 @@ class MainActivity : ComponentActivity() {
                     }
 
                     composable("main_shipper") {
-                        MainRouteContainerShipper()
+                        MainRouteContainerShipper(
+                            onLogout = {
+                                authViewModel.logoutUser() // Khi shipper bấm đăng xuất, kích hoạt đổi authState thành "Đã đăng xuất!"
+                            }
+                        )
                     }
                 }
             }

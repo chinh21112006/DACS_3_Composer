@@ -13,10 +13,13 @@ import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CustomerSearchBar() {
+fun CustomerSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit
+) {
     OutlinedTextField(
-        value = "",
-        onValueChange = {},
+        value = query,
+        onValueChange = onQueryChange,
         placeholder = { Text("Tìm kiếm tên hoặc số điện thoại...", fontSize = 14.sp, color = Color.Gray) },
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
         modifier = Modifier.fillMaxWidth(),

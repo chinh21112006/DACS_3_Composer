@@ -42,37 +42,6 @@ fun ShipperOrdersScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFE2E8F0))
-                ) {
-                    Icon(
-                        painter = painterResource(id = android.R.drawable.ic_menu_my_calendar),
-                        contentDescription = "Avatar",
-                        modifier = Modifier.fillMaxSize(),
-                        tint = Color.Gray
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Text(
-                    text = "Name Ship",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2563EB),
-                    modifier = Modifier.weight(1f)
-                )
-
-                IconButton(onClick = { /* Xử lý thông báo */ }) {
-                    Icon(
-                        painter = painterResource(id = android.R.drawable.ic_menu_my_calendar),
-                        contentDescription = "Notification",
-                        tint = Color(0xFF2563EB)
-                    )
-                }
             }
         },
         containerColor = Color(0xFFF8FAFC)

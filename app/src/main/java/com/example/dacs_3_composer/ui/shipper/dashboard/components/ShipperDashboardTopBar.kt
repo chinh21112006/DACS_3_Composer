@@ -11,12 +11,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.example.dacs_3_composer.data.model.User
 
 @Composable
-fun ShipperDashboardTopBar() {
+fun ShipperDashboardTopBar(
+    user: User, // 🎯 THÊM THAM SỐ: Nhận đối tượng User thực tế từ database gửi xuống
+    onNotificationClick: () -> Unit = {}
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -24,13 +30,32 @@ fun ShipperDashboardTopBar() {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Avatar tròn của tài xế
+        // 🎯 CẬP NHẬT: Xử lý hiển thị Avatar thực tế từ Cloudinary
         Box(
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF3B82F6)) // Màu nền đại diện avatar tài xế
-        )
+                .background(Color(0xFF1D4ED8)), // Màu nền dự phòng
+            contentAlignment = Alignment.Center
+        ) {
+            if (user.avatarUrl.isNotBlank()) {
+                AsyncImage(
+                    model = user.avatarUrl,
+                    contentDescription = "Shipper Avatar",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                // Nếu chưa có avatar, lấy chữ cái đầu của tên để hiển thị (Ví dụ: "Minh Trần" -> "M")
+                val firstChar = if (user.name.isNotBlank()) user.name.take(1).uppercase() else "S"
+                Text(
+                    text = firstChar,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.width(12.dp))
 
@@ -40,15 +65,16 @@ fun ShipperDashboardTopBar() {
                 fontSize = 13.sp,
                 color = Color(0xFF6B7280)
             )
+            // 🎯 CẬP NHẬT: Hiển thị tên thực tế của tài xế từ database
             Text(
-                text = "Minh Trần",
+                text = if (user.name.isNotBlank()) user.name else "Tài xế mới",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1D4ED8)
             )
         }
 
-        IconButton(onClick = {}) {
+        IconButton(onClick = onNotificationClick) {
             BadgedBox(
                 badge = { Badge(containerColor = Color(0xFFEF4444), modifier = Modifier.size(8.dp)) }
             ) {
