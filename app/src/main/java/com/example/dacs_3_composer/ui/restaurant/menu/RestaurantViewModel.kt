@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.dacs_3_composer.data.model.Dish
 import com.example.dacs_3_composer.data.repository.MenuRepository
+import com.example.dacs_3_composer.data.repository.ActivityLogRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,11 +15,11 @@ import kotlinx.coroutines.launch
 
 class RestaurantViewModel : ViewModel() {
     private val repository = MenuRepository()
+    private val activityLogRepository = ActivityLogRepository()
     private val auth = FirebaseAuth.getInstance()
     private val TAG = "RestaurantViewModel"
 
     private val _dishes = MutableStateFlow<List<Dish>>(emptyList())
-//    Quản lý trạng thái
     val dishes: StateFlow<List<Dish>> = _dishes.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
@@ -27,7 +28,6 @@ class RestaurantViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-//    Xác định danh tính nhà hàng
     private val restaurantId: String
         get() = auth.currentUser?.uid ?: ""
 
@@ -35,14 +35,9 @@ class RestaurantViewModel : ViewModel() {
         fetchDishes()
     }
 
-//    Lấy danh sách món ăn
     fun fetchDishes() {
         val uid = restaurantId
-        Log.d(TAG, "Fetching dishes for restaurantId: $uid")
-        if (uid.isEmpty()) {
-            _error.value = "Bạn cần đăng nhập để quản lý thực đơn"
-            return
-        }
+        if (uid.isEmpty()) return
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -51,44 +46,22 @@ class RestaurantViewModel : ViewModel() {
                     _isLoading.value = false
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Lỗi fetchDishes: ${e.message}")
                 _error.value = "Lỗi khi tải thực đơn: ${e.message}"
                 _isLoading.value = false
             }
         }
     }
 
-    fun addDish(
-        name: String,
-        price: Double,
-        category: String,
-        description: String,
-        imageUri: Uri?,
-//        Đây là nơi để biết đến Cloudinary
-        uploadPreset: String = "ml_default" 
-    ) {
-//        Phân biệt id nhà hàng
+    fun addDish(name: String, price: Double, category: String, description: String, imageUri: Uri?, uploadPreset: String = "ml_default") {
         val uid = restaurantId
-        Log.d(TAG, "Bắt đầu addDish. restaurantId: $uid, name: $name")
-        
-        if (uid.isEmpty()) {
-            _error.value = "Lỗi: Không tìm thấy ID nhà hàng. Vui lòng đăng nhập lại."
-            Log.e(TAG, "restaurantId is empty!")
-            return
-        }
-//      Chạy ngầm kiểu như task java
+        if (uid.isEmpty()) return
         viewModelScope.launch {
-//            Bật load dữ liệu
             _isLoading.value = true
             try {
-//                Khai báo Url bởi vì Uri là link ảnh
                 var imageUrl = ""
                 if (imageUri != null) {
-                    Log.d(TAG, "Đang upload ảnh...")
-//                    Lấy link ảnh khi đã thêm ảnh ở Cloud dinary
                     imageUrl = repository.uploadImage(imageUri, uploadPreset)
                 }
-//          Sau khi upload ảnh thì gán từng thành phần vào model có Url khi mình lấy có giá trị trả về ở trên
                 val newDish = Dish(
                     name = name,
                     price = price,
@@ -98,15 +71,19 @@ class RestaurantViewModel : ViewModel() {
                     restaurantId = uid,
                     available = true
                 )
-                
-                Log.d(TAG, "Đang lưu món vào Firestore...")
-//                Lúc này là thêm vào fire base
                 repository.addDish(newDish)
-                Log.d(TAG, "Lưu Firestore thành công!")
-//                Khi lưu xong thì sẽ tắt vòng xoay dữ liệu
+                
+                // 🎯 LOG ACTIVITY
+                activityLogRepository.logActivity(
+                    restaurantId = uid,
+                    type = "menu",
+                    title = "Thêm món mới",
+                    description = "Đã thêm món \"$name\" vào danh mục $category",
+                    imageUrl = imageUrl
+                )
+                
                 _isLoading.value = false
             } catch (e: Exception) {
-                Log.e(TAG, "Lỗi trong addDish: ${e.message}")
                 _error.value = "Lỗi khi thêm món: ${e.message}"
                 _isLoading.value = false
             }
@@ -114,6 +91,7 @@ class RestaurantViewModel : ViewModel() {
     }
 
     fun updateDish(dish: Dish, newImageUri: Uri?, uploadPreset: String = "ml_default") {
+        val uid = restaurantId
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -121,12 +99,20 @@ class RestaurantViewModel : ViewModel() {
                 if (newImageUri != null) {
                     imageUrl = repository.uploadImage(newImageUri, uploadPreset)
                 }
-
                 val updatedDish = dish.copy(imageUrl = imageUrl)
                 repository.updateDish(updatedDish)
+
+                // 🎯 LOG ACTIVITY
+                activityLogRepository.logActivity(
+                    restaurantId = uid,
+                    type = "menu",
+                    title = "Cập nhật thực đơn",
+                    description = "Đã thay đổi thông tin món \"${dish.name}\"",
+                    imageUrl = imageUrl
+                )
+
                 _isLoading.value = false
             } catch (e: Exception) {
-                Log.e(TAG, "Lỗi updateDish: ${e.message}")
                 _error.value = "Lỗi khi cập nhật: ${e.message}"
                 _isLoading.value = false
             }
@@ -134,10 +120,21 @@ class RestaurantViewModel : ViewModel() {
     }
 
     fun deleteDish(dishId: String) {
+        val uid = restaurantId
+        val dishName = _dishes.value.find { it.id == dishId }?.name ?: "Món ăn"
         viewModelScope.launch {
             _isLoading.value = true
             try {
                 repository.deleteDish(dishId)
+                
+                // 🎯 LOG ACTIVITY
+                activityLogRepository.logActivity(
+                    restaurantId = uid,
+                    type = "menu",
+                    title = "Xóa món ăn",
+                    description = "Đã xóa món \"$dishName\" khỏi thực đơn"
+                )
+
                 _isLoading.value = false
             } catch (e: Exception) {
                 _error.value = "Lỗi khi xóa món: ${e.message}"
@@ -146,21 +143,23 @@ class RestaurantViewModel : ViewModel() {
         }
     }
 
-    // Thêm hàm này vào cuối file (trên clearError) để cập nhật trạng thái bật tắt món
     fun toggleDishAvailability(dish: Dish) {
+        val uid = restaurantId
         viewModelScope.launch {
-            // Không cần bật _isLoading.value = true để tránh hiện vòng quay CircularProgressIndicator làm khựng Switch của chủ quán
             try {
-                // Đảo ngược trạng thái hiện tại của món ăn (true -> false hoặc false -> true)
-                val updatedDish = dish.copy(available = !dish.available)
-
-                Log.d(TAG, "Đang đổi trạng thái món ${dish.name} sang: ${updatedDish.available}")
-
-                // Gọi repository cập nhật thẳng lên Firestore
+                val newState = !dish.available
+                val updatedDish = dish.copy(available = newState)
                 repository.updateDish(updatedDish)
+
+                // 🎯 LOG ACTIVITY
+                activityLogRepository.logActivity(
+                    restaurantId = uid,
+                    type = "menu",
+                    title = if (newState) "Bật món ăn" else "Tắt món ăn",
+                    description = "Món \"${dish.name}\" hiện đang ${if (newState) "còn hàng" else "hết hàng"}"
+                )
             } catch (e: Exception) {
-                Log.e(TAG, "Lỗi toggleDishAvailability: ${e.message}")
-                _error.value = "Không thể cập nhật trạng thái món: ${e.message}"
+                _error.value = "Không thể cập nhật trạng thái: ${e.message}"
             }
         }
     }

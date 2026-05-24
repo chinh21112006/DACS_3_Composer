@@ -8,8 +8,20 @@ data class RestaurantDetail(
     val name: String = "",
     val rating: Double = 0.0,
     val address: String = "",
-    val deliveryTime: String = "0 min",
-    val distance: String = "0 km",
+    val deliveryTime: String = "15-20 min",
+    val distance: String = "0.5 km",
     val description: String = "",
-    val coverImage: String = ""
+    val coverImage: String = "",
+    val avatarUrl: String = "",
+    val email: String = "",
+    val phone: String = "",
+    val openTime: String = "",
+    val closeTime: String = "",
+    
+    // Cài đặt thông báo
+    val orderNotify: Boolean = true,
+    val soundNotify: Boolean = true,
+    val pushNotify: Boolean = true,
+    val emailNotify: Boolean = false,
+    val promoNotify: Boolean = false
 )

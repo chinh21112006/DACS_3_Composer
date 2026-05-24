@@ -24,6 +24,12 @@ class RestaurantHomeViewModel : ViewModel() {
     var totalOrdersCount by mutableStateOf("0")
         private set
 
+    // Thêm các biến lưu thông tin nhà hàng
+    var restaurantName by mutableStateOf("")
+        private set
+    var restaurantAvatarUrl by mutableStateOf("")
+        private set
+
     private val _topDishes = MutableStateFlow<List<TopDish>>(emptyList())
     val topDishes: StateFlow<List<TopDish>> = _topDishes
 
@@ -32,13 +38,30 @@ class RestaurantHomeViewModel : ViewModel() {
         private set
 
     private val currentRestaurantId: String
-        get() = auth.currentUser?.uid ?: "uid_quan_cua_ban"
+        get() = auth.currentUser?.uid ?: ""
 
     init {
         fetchDashboardData()
+        fetchRestaurantInfo()
+    }
+
+    private fun fetchRestaurantInfo() {
+        if (currentRestaurantId.isBlank()) return
+        firestore.collection("users").document(currentRestaurantId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("RestaurantHomeVM", "Lỗi tải thông tin user: ", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null && snapshot.exists()) {
+                    restaurantName = snapshot.getString("name") ?: ""
+                    restaurantAvatarUrl = snapshot.getString("avatarUrl") ?: ""
+                }
+            }
     }
 
     fun fetchDashboardData() {
+        if (currentRestaurantId.isBlank()) return
         firestore.collection("orders")
             .whereEqualTo("restaurantId", currentRestaurantId)
             .whereEqualTo("status", "COMPLETED") // Chỉ tính doanh thu trên đơn thành công
@@ -71,8 +94,6 @@ class RestaurantHomeViewModel : ViewModel() {
             Calendar.THURSDAY to 0.0, Calendar.FRIDAY to 0.0, Calendar.SATURDAY to 0.0, Calendar.SUNDAY to 0.0
         )
 
-        // Cấu hình định dạng đọc chuỗi thời gian từ thuộc tính order.time (Ví dụ: "Hôm nay, 14:30" hoặc "2026-05-20 14:30")
-        // Nếu dùng chuỗi tự do, bạn nên lưu thêm trường timestamp (Long) để phân tích chuẩn xác hơn.
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
         orders.forEach { order ->
@@ -84,7 +105,6 @@ class RestaurantHomeViewModel : ViewModel() {
                     daysRevenue[dayOfWeek] = daysRevenue[dayOfWeek]!! + order.totalPrice
                 }
             } catch (e: Exception) {
-                // Dự phòng: Nếu chuỗi thời gian không khớp định dạng, tạm tính vào ngày hôm nay để tránh lỗi crash
                 val todayOfWeek = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
                 daysRevenue[todayOfWeek] = daysRevenue[todayOfWeek]!! + order.totalPrice
             }
@@ -93,7 +113,6 @@ class RestaurantHomeViewModel : ViewModel() {
         val maxRevenue = daysRevenue.values.maxOrNull() ?: 1.0
         val safeMax = if (maxRevenue == 0.0) 1.0 else maxRevenue
 
-        // Sắp xếp mảng trả về đúng thứ tự giao diện Việt Nam: T2, T3, T4, T5, T6, T7, CN
         weeklyChartData = listOf(
             (daysRevenue[Calendar.MONDAY]!! / safeMax).toFloat(),
             (daysRevenue[Calendar.TUESDAY]!! / safeMax).toFloat(),
@@ -106,16 +125,14 @@ class RestaurantHomeViewModel : ViewModel() {
     }
 
     private fun calculateTopDishes(orders: List<Order>) {
-        val dishCountMap = mutableMapOf<String, Int>() // [Tên món -> Số lượng]
+        val dishCountMap = mutableMapOf<String, Int>()
 
-        // Cộng dồn số lượng từng món ăn xuất hiện trong danh sách đơn hàng
         orders.flatMap { it.items }.forEach { item ->
             if (item.name.isNotBlank()) {
                 dishCountMap[item.name] = (dishCountMap[item.name] ?: 0) + item.quantity
             }
         }
 
-        // Sắp xếp giảm dần theo số lượng đặt, lấy tối đa 3 món đầu tiên
         val sortedDishes = dishCountMap.entries
             .sortedByDescending { it.value }
             .take(3)
@@ -124,7 +141,7 @@ class RestaurantHomeViewModel : ViewModel() {
                     rank = index + 1,
                     dishName = entry.key,
                     ordersCount = entry.value,
-                    imageUrl = "" // Bạn có thể tối ưu truy vấn thêm bảng dishes để lấy ảnh, tạm thời dùng ảnh mặc định trên UI
+                    imageUrl = ""
                 )
             }
 

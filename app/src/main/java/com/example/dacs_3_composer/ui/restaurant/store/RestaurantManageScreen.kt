@@ -11,7 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -76,7 +76,7 @@ fun RestaurantManageScreen(
             editName = it.name
             editDescription = it.description
             editAddress = it.address
-            editCoverUrl = it.coverImage // Thêm dòng này
+            editCoverUrl = it.coverImage
         }
     }
 
@@ -108,7 +108,7 @@ fun RestaurantManageScreen(
                                 .padding(16.dp)
                                 .background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
                         ) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.Black)
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Black)
                         }
 
                         SmallFloatingActionButton(

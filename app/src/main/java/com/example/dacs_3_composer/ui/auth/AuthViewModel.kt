@@ -5,6 +5,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.dacs_3_composer.data.repository.ActivityLogRepository
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
 class AuthViewModel : ViewModel() {
 
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val activityLogRepository = ActivityLogRepository()
 
     private val _authState = MutableStateFlow<String>("")
     val authState: StateFlow<String> = _authState
@@ -58,6 +60,9 @@ class AuthViewModel : ViewModel() {
                                         .addOnSuccessListener { document ->
                                             if (document != null && document.exists()) {
                                                 val role = document.getString("role") ?: "user"
+                                                if (role == "restaurant") {
+                                                    logLogin(uid)
+                                                }
                                                 triggerLoginSuccessByRole(role)
                                             } else {
                                                 val userMap = hashMapOf(
@@ -136,6 +141,9 @@ class AuthViewModel : ViewModel() {
                             .addOnSuccessListener { document ->
                                 if (document != null && document.exists()) {
                                     val role = document.getString("role") ?: "user"
+                                    if (role == "restaurant") {
+                                        logLogin(uid)
+                                    }
                                     triggerLoginSuccessByRole(role)
                                 } else {
                                     triggerLoginSuccessByRole("user")
@@ -149,6 +157,16 @@ class AuthViewModel : ViewModel() {
                     _authState.value = "Sai tài khoản hoặc mật khẩu!"
                 }
             }
+    }
+
+    private fun logLogin(uid: String) {
+        activityLogRepository.logActivity(
+            restaurantId = uid,
+            type = "login",
+            title = "Đăng nhập hệ thống",
+            description = "Phiên làm việc mới đã bắt đầu",
+            details = "Thiết bị: Android Device • Đăng nhập thành công"
+        )
     }
 
     private fun triggerLoginSuccessByRole(role: String) {

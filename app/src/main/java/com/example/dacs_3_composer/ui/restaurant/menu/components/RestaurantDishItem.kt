@@ -17,6 +17,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -32,7 +33,7 @@ fun RestaurantDishItem(
     imageUrl: String,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    onToggleAvailability: (Boolean) -> Unit, // Callback chuẩn bị sẵn cho backend bật tắt
+    onToggleAvailability: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -47,10 +48,9 @@ fun RestaurantDishItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Hiển thị ảnh từ URL Cloudinary bằng Coil
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(imageUrl.ifEmpty { R.drawable.banner1 }) // Ảnh mặc định nếu URL trống
+                    .data(imageUrl.ifEmpty { R.drawable.banner1 })
                     .crossfade(true)
                     .build(),
                 placeholder = painterResource(R.drawable.banner1),
@@ -77,7 +77,9 @@ fun RestaurantDishItem(
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         color = Color(0xFF191C1D),
-                        modifier = Modifier.weight(1f, fill = false)
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
 
                     val badgeBgColor = if (isAvailable) Color(0xFFE8F8F5) else Color(0xFFF1F3F4)
@@ -101,7 +103,9 @@ fun RestaurantDishItem(
                 Text(
                     text = restaurantName,
                     fontSize = 13.sp,
-                    color = Color(0xFF727785)
+                    color = Color(0xFF727785),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Text(
@@ -114,12 +118,10 @@ fun RestaurantDishItem(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Chuyển cụm điều khiển sang Column dọc để xếp Switch ở dưới hàng icon
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Hàng chứa icon sửa và xóa cũ của bạn
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -142,20 +144,18 @@ fun RestaurantDishItem(
                     }
                 }
 
-                // Nút Switch bật tắt trạng thái món ăn ngay phía dưới
                 Switch(
                     checked = isAvailable,
                     onCheckedChange = onToggleAvailability,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFF2ECC71), // Màu xanh khi còn món
+                        checkedTrackColor = Color(0xFF2ECC71),
                         uncheckedThumbColor = Color(0xFF727785),
                         uncheckedTrackColor = Color(0xFFE1E2E5)
                     ),
-                    modifier = Modifier.scale(0.8f) // Thu nhỏ nhẹ lại một chút cho cân đối với hàng icon
+                    modifier = Modifier.scale(0.8f)
                 )
             }
         }
     }
 }
-

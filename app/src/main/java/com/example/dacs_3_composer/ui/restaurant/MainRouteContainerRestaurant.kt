@@ -20,18 +20,23 @@ import com.example.dacs_3_composer.ui.restaurant.home.RestaurantHomeScreen
 import com.example.dacs_3_composer.ui.restaurant.menu.RestaurantMenuScreen
 import com.example.dacs_3_composer.ui.restaurant.order.RestaurantOrderScreen
 import com.example.dacs_3_composer.ui.restaurant.profile.RestauranProfileScreen
+import com.example.dacs_3_composer.ui.restaurant.profile.settings.ActivityHistoryScreen
+import com.example.dacs_3_composer.ui.restaurant.profile.settings.HelpSupportScreen
+import com.example.dacs_3_composer.ui.restaurant.profile.settings.NotificationSettingsScreen
+import com.example.dacs_3_composer.ui.restaurant.profile.settings.RestaurantInfoScreen
+import com.example.dacs_3_composer.ui.restaurant.profile.settings.SecurityScreen
 import com.example.dacs_3_composer.ui.restaurant.store.RestaurantManageScreen
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun MainRouteContainerRestaurant(
+    onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
     val auth = FirebaseAuth.getInstance()
     val currentUserId = auth.currentUser?.uid ?: ""
 
-    // Danh sách các mục hiển thị dưới thanh BottomBar điều hướng của Nhà hàng
     val navigationItems = listOf(
         NavigationRestaurant.Dashboard,
         NavigationRestaurant.Orders,
@@ -39,6 +44,9 @@ fun MainRouteContainerRestaurant(
         NavigationRestaurant.Menu,
         NavigationRestaurant.Account
     )
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -49,11 +57,15 @@ fun MainRouteContainerRestaurant(
                 containerColor = Color.White,
                 tonalElevation = 8.dp
             ) {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
-
                 navigationItems.forEach { item ->
-                    val isSelected = currentRoute == item.route
+                    // 🎯 ĐỒNG BỘ: Highlight mục "Tài khoản" cho tất cả các trang cài đặt con
+                    val isSettingsRoute = currentRoute == "restaurant_info_settings" || 
+                                         currentRoute == "notification_settings" || 
+                                         currentRoute == "activity_history" || 
+                                         currentRoute == "security_settings" ||
+                                         currentRoute == "help_support"
+                    
+                    val isSelected = currentRoute == item.route || (item == NavigationRestaurant.Account && isSettingsRoute)
 
                     NavigationBarItem(
                         selected = isSelected,
@@ -98,20 +110,17 @@ fun MainRouteContainerRestaurant(
             startDestination = NavigationRestaurant.Dashboard.route,
             modifier = Modifier.padding(paddingValues)
         ) {
-            // 🎯 ĐỒNG BỘ: Gọi màn hình chính trống tham số để nó tự nạp dữ liệu Realtime từ ViewModel
             composable(NavigationRestaurant.Dashboard.route) {
                 RestaurantHomeScreen()
             }
 
-            // Màn hình Quản lý đơn hàng (Đã xử lý bộ lọc PENDING, PROCESSING, SHIPPING, COMPLETED, CANCELLED)
             composable(NavigationRestaurant.Orders.route) {
                 RestaurantOrderScreen()
             }
 
-            // Màn hình Quản lý thông tin cửa hàng
             composable(NavigationRestaurant.Store.route) {
                 RestaurantManageScreen(
-                    restaurantId = currentUserId, // Đồng bộ trực tiếp UID của tài khoản đối tác đang đăng nhập
+                    restaurantId = currentUserId,
                     onBackClick = {
                         navController.popBackStack()
                     },
@@ -120,14 +129,69 @@ fun MainRouteContainerRestaurant(
                 )
             }
 
-            // Màn hình Quản lý danh sách thực đơn món ăn của quán
             composable(NavigationRestaurant.Menu.route) {
                 RestaurantMenuScreen()
             }
 
-            // Màn hình Hồ sơ cá nhân / Thiết lập tài khoản nhà hàng
             composable(NavigationRestaurant.Account.route) {
-                RestauranProfileScreen()
+                RestauranProfileScreen(
+                    onStoreInfoClick = {
+                        navController.navigate("restaurant_info_settings")
+                    },
+                    onNotificationSettingClick = {
+                        navController.navigate("notification_settings")
+                    },
+                    onActivityHistoryClick = {
+                        navController.navigate("activity_history")
+                    },
+                    onSecurityClick = {
+                        navController.navigate("security_settings")
+                    },
+                    onHelpClick = {
+                        navController.navigate("help_support")
+                    },
+                    onLogoutClick = onLogout
+                )
+            }
+
+            composable("restaurant_info_settings") {
+                RestaurantInfoScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("notification_settings") {
+                NotificationSettingsScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("activity_history") {
+                ActivityHistoryScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("security_settings") {
+                SecurityScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("help_support") {
+                HelpSupportScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
             }
         }
     }

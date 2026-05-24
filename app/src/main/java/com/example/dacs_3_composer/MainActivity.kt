@@ -116,7 +116,11 @@ class MainActivity : ComponentActivity() {
                     }
 
                     composable("main_restaurant") {
-                        MainRouteContainerRestaurant()
+                        MainRouteContainerRestaurant(
+                            onLogout = {
+                                authViewModel.logoutUser()
+                            }
+                        )
                     }
                     composable("main_admin") {
                         MainRouteContainerAdmin()
