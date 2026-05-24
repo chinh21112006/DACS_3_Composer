@@ -16,7 +16,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.dacs_3_composer.ui.admin.MainRouteContainerAdmin
 import com.example.dacs_3_composer.ui.auth.AuthViewModel
 import com.example.dacs_3_composer.ui.auth.login.LoginScreen
-import com.example.dacs_3_composer.ui.auth.signup.RegisterScreen
+import com.example.dacs_3_composer.ui.auth.register.RegisterScreen
 import com.example.dacs_3_composer.ui.user.MainRouteContainerUser
 import com.example.dacs_3_composer.ui.restaurant.MainRouteContainerRestaurant
 import com.example.dacs_3_composer.ui.shipper.MainRouteContainerShipper
@@ -35,18 +35,15 @@ class MainActivity : ComponentActivity() {
                 val context = LocalContext.current
 
                 LaunchedEffect(authState) {
-                    // Chỉ xử lý khi chuỗi trạng thái có nội dung thực sự và không phải trạng thái chờ
                     if (authState.isNotBlank() && authState != "Loading..." && authState != "Đang kết nối với Google...") {
 
                         Toast.makeText(context, authState, Toast.LENGTH_SHORT).show()
 
                         when (authState) {
                             "Đăng nhập User thành công!" -> {
-                                // 1. Chuyển màn hình trước
                                 navController.navigate("main_user") {
                                     popUpTo("login") { inclusive = true }
                                 }
-                                // 2. Clear state sau để cắt đứt vòng lặp Recomposition gây nghẽn 199 frames
                                 authViewModel.clearAuthState()
                             }
                             "Đăng nhập Restaurant thành công!" -> {
@@ -101,8 +98,8 @@ class MainActivity : ComponentActivity() {
 
                     composable("register") {
                         RegisterScreen(
-                            onRegisterClick = { email, password, confirmPass ->
-                                authViewModel.registerUser(email, password, confirmPass)
+                            onRegisterClick = { fullName, phoneNumber, email, password, confirmPass, role ->
+                                authViewModel.registerUser(fullName, phoneNumber, email, password, confirmPass, role)
                             },
                             onNavigateToLogin = {
                                 navController.popBackStack()
@@ -128,7 +125,7 @@ class MainActivity : ComponentActivity() {
                     composable("main_shipper") {
                         MainRouteContainerShipper(
                             onLogout = {
-                                authViewModel.logoutUser() // Khi shipper bấm đăng xuất, kích hoạt đổi authState thành "Đã đăng xuất!"
+                                authViewModel.logoutUser()
                             }
                         )
                     }
