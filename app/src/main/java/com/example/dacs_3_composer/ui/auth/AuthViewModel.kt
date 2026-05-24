@@ -5,6 +5,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.dacs_3_composer.data.repository.ActivityLogRepository
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
 class AuthViewModel : ViewModel() {
 
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val activityLogRepository = ActivityLogRepository()
 
     private val _authState = MutableStateFlow<String>("")
     val authState: StateFlow<String> = _authState
@@ -24,9 +26,6 @@ class AuthViewModel : ViewModel() {
     private val webClientId = "963036038937-oc3omdisdodgmdfoqn24ko5keeat5tsi.apps.googleusercontent.com"
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
 
-    // ==========================================
-    // HÀM XỬ LÝ ĐĂNG NHẬP BẰNG GOOGLE
-    // ==========================================
     fun loginWithGoogle(context: Context) {
         _authState.value = "Đang kết nối với Google..."
         val credentialManager = CredentialManager.create(context)
@@ -61,6 +60,9 @@ class AuthViewModel : ViewModel() {
                                         .addOnSuccessListener { document ->
                                             if (document != null && document.exists()) {
                                                 val role = document.getString("role") ?: "user"
+                                                if (role == "restaurant") {
+                                                    logLogin(uid)
+                                                }
                                                 triggerLoginSuccessByRole(role)
                                             } else {
                                                 val userMap = hashMapOf(
@@ -69,7 +71,6 @@ class AuthViewModel : ViewModel() {
                                                 )
                                                 db.collection("users").document(uid).set(userMap)
                                                     .addOnSuccessListener {
-                                                        // 🌟 ĐÃ SỬA: Gọi hàm tập trung để sinh chuỗi khớp với MainActivity
                                                         triggerLoginSuccessByRole("user")
                                                     }
                                                     .addOnFailureListener { e ->
@@ -89,11 +90,8 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // ==========================================
-    // HÀM XỬ LÝ ĐĂNG KÝ BẰNG EMAIL/PASSWORD
-    // ==========================================
-    fun registerUser(email: String, password: String, confirmPass: String) {
-        if (email.isEmpty() || password.isEmpty() || confirmPass.isEmpty()) {
+    fun registerUser(fullName: String, phoneNumber: String, email: String, password: String, confirmPass: String, role: String) {
+        if (fullName.isEmpty() || phoneNumber.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPass.isEmpty()) {
             _authState.value = "Vui lòng nhập đầy đủ thông tin!"
             return
         }
@@ -109,8 +107,10 @@ class AuthViewModel : ViewModel() {
                     val uid = auth.currentUser?.uid
                     if (uid != null){
                         val userMap = hashMapOf(
+                            "fullName" to fullName,
+                            "phoneNumber" to phoneNumber,
                             "email" to email,
-                            "role" to "user" // 🌟 Mặc định đăng ký tài khoản tự do là khách mua hàng ("user")
+                            "role" to role // Use the selected role
                         )
                         db.collection("users").document(uid).set(userMap)
                             .addOnSuccessListener {
@@ -125,9 +125,6 @@ class AuthViewModel : ViewModel() {
             }
     }
 
-    // ==========================================
-    // HÀM XỬ LÝ ĐĂNG NHẬP BẰNG EMAIL/PASSWORD
-    // ==========================================
     fun loginUser(email: String, password: String) {
         if (email.isEmpty() || password.isEmpty()) {
             _authState.value = "Vui lòng không để trống Email/Password!"
@@ -144,9 +141,11 @@ class AuthViewModel : ViewModel() {
                             .addOnSuccessListener { document ->
                                 if (document != null && document.exists()) {
                                     val role = document.getString("role") ?: "user"
+                                    if (role == "restaurant") {
+                                        logLogin(uid)
+                                    }
                                     triggerLoginSuccessByRole(role)
                                 } else {
-                                    // 🌟 ĐÃ SỬA: Đồng bộ chuỗi đăng nhập User thành công
                                     triggerLoginSuccessByRole("user")
                                 }
                             }
@@ -160,7 +159,16 @@ class AuthViewModel : ViewModel() {
             }
     }
 
-    // 🌟 HÀM PHỤ TRỢ: Phát tín hiệu authState cụ thể theo từng Role để bên ngoài giao diện (UI) bắt chuỗi ký tự nhảy màn hình
+    private fun logLogin(uid: String) {
+        activityLogRepository.logActivity(
+            restaurantId = uid,
+            type = "login",
+            title = "Đăng nhập hệ thống",
+            description = "Phiên làm việc mới đã bắt đầu",
+            details = "Thiết bị: Android Device • Đăng nhập thành công"
+        )
+    }
+
     private fun triggerLoginSuccessByRole(role: String) {
         when (role) {
             "admin" -> _authState.value = "Đăng nhập Admin thành công!"
@@ -170,7 +178,6 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // HÀM XỬ LÝ ĐĂNG XUẤT
     fun logoutUser() {
         auth.signOut()
         _authState.value = "Đã đăng xuất!"

@@ -1,20 +1,18 @@
 package com.example.dacs_3_composer.ui.restaurant.store.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -22,7 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -50,16 +48,22 @@ fun RestaurantInfoManageCard(
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    // Tên nhà hàng
                     Text(
-                        text = restaurant.name,
+                        text = restaurant.name.ifEmpty { "Tên nhà hàng" },
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF1A1A1A)
                     )
+                    Text(
+                        text = restaurant.description.ifEmpty { "Chưa có mô tả cho nhà hàng này." },
+                        fontSize = 14.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
 
-                // NÚT ICON CHỈNH SỬA THÔNG TIN (Tên, mô tả, địa chỉ)
                 IconButton(
                     onClick = onEditInfoClick,
                     modifier = Modifier
@@ -68,38 +72,49 @@ fun RestaurantInfoManageCard(
                 ) {
                     Icon(
                         Icons.Default.Edit,
-                        contentDescription = "Sửa thông tin quán",
+                        contentDescription = "Sửa thông tin",
                         tint = Color(0xFF1E56A0),
                         modifier = Modifier.size(18.dp)
                     )
                 }
             }
 
-            // Mô tả nhà hàng
-            Text(
-                text = restaurant.description,
-                fontSize = 14.sp,
-                color = Color.Gray,
-                modifier = Modifier.padding(vertical = 6.dp)
-            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF1F3F4))
 
-            // Địa chỉ nhà hàng
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
-                Icon(
-                    painter = painterResource(id = com.example.dacs_3_composer.R.drawable.ic_location),
-                    contentDescription = null,
-                    tint = Color.LightGray,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = restaurant.address,
-                    fontSize = 13.sp,
-                    color = Color.Gray,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+            // Thông tin chi tiết với icon
+            DetailRow(icon = Icons.Default.LocationOn, text = restaurant.address.ifEmpty { "Chưa cập nhật địa chỉ" })
+            DetailRow(icon = Icons.Default.Email, text = restaurant.email.ifEmpty { "Chưa cập nhật email" })
+            DetailRow(icon = Icons.Default.Phone, text = restaurant.phone.ifEmpty { "Chưa cập nhật số điện thoại" })
+            
+            val timeRange = if (restaurant.openTime.isNotBlank() && restaurant.closeTime.isNotBlank()) {
+                "${restaurant.openTime} - ${restaurant.closeTime}"
+            } else {
+                "Chưa cập nhật"
             }
+            DetailRow(icon = Icons.Default.AccessTime, text = "Giờ mở cửa: $timeRange")
         }
+    }
+}
+
+@Composable
+private fun DetailRow(icon: ImageVector, text: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 4.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color(0xFF2159BC),
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = text,
+            fontSize = 13.sp,
+            color = Color(0xFF414754),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }

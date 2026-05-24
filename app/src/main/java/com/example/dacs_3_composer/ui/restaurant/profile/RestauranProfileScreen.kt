@@ -17,25 +17,28 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dacs_3_composer.R
 import com.example.dacs_3_composer.ui.restaurant.profile.components.*
-import com.example.dacs_3_composer.ui.user.profile.components.ProfileHeader
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RestauranProfileScreen(
+    onStoreInfoClick: () -> Unit,
+    onNotificationSettingClick: () -> Unit,
+    onActivityHistoryClick: () -> Unit,
+    onSecurityClick: () -> Unit,
+    onHelpClick: () -> Unit,
+    onLogoutClick: () -> Unit,
     modifier: Modifier = Modifier,
     profileViewModel: RestaurantProfileViewModel = viewModel()
 ) {
     var showEditNameDialog by remember { mutableStateOf(false) }
     var inputName by remember { mutableStateOf("") }
 
-    // 🎯 1. BỘ PHÓNG CHỌN ẢNH ĐẠI DIỆN
     val avatarPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let { profileViewModel.uploadAndSaveAvatar(it) }
     }
 
-    // 🎯 2. BỘ PHÓNG CHỌN ẢNH BÌA CỦA CỬA HÀNG
     val coverPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -58,13 +61,13 @@ fun RestauranProfileScreen(
             contentPadding = PaddingValues(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // 🎯 LIÊN KẾT ĐỘNG: Gắn biến trực tiếp từ database lên giao diện ảnh bìa profile
+            // 🎯 LIÊN KẾT ĐỘNG: Gắn biến trực tiếp từ database
             item {
                 ProfileImages(
-                    coverUrl = profileViewModel.coverUrl,   // Link ảnh bìa lấy từ collection restaurants
-                    avatarUrl = profileViewModel.avatarUrl, // Link ảnh đại diện lấy từ collection users
-                    onEditCoverClick = { coverPickerLauncher.launch("image/*") }, // Mở thư viện chọn ảnh bìa
-                    onEditAvatarClick = { avatarPickerLauncher.launch("image/*") } // Mở thư viện chọn avatar
+                    coverUrl = profileViewModel.coverUrl,
+                    avatarUrl = profileViewModel.avatarUrl,
+                    onEditCoverClick = { coverPickerLauncher.launch("image/*") },
+                    onEditAvatarClick = { avatarPickerLauncher.launch("image/*") }
                 )
             }
 
@@ -97,24 +100,24 @@ fun RestauranProfileScreen(
 
             item {
                 SystemSettingsSection(
-                    onStoreInfoClick = { },
-                    onNotificationSettingClick = { },
-                    onActivityHistoryClick = { },
-                    onSecurityClick = { },
+                    onStoreInfoClick = onStoreInfoClick,
+                    onNotificationSettingClick = onNotificationSettingClick,
+                    onActivityHistoryClick = onActivityHistoryClick,
+                    onSecurityClick = onSecurityClick,
                     modifier = Modifier.padding(horizontal = 20.dp)
                 )
             }
 
             item {
                 SupportAndLogoutSection(
-                    onHelpClick = { },
-                    onLogoutClick = { },
+                    onHelpClick = onHelpClick,
+                    onLogoutClick = onLogoutClick,
                     modifier = Modifier.padding(horizontal = 20.dp)
                 )
             }
         }
 
-        // Lớp mờ và vòng xoay tiến trình khi đang thực hiện tải file lên Cloudinary
+        // Lớp mờ và vòng xoay tiến trình khi đang thực hiện tải file
         if (profileViewModel.isLoading) {
             Box(
                 modifier = Modifier

@@ -16,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.dacs_3_composer.R
 import com.example.dacs_3_composer.data.model.Dish
 import com.example.dacs_3_composer.ui.restaurant.menu.components.*
 
@@ -32,15 +31,11 @@ fun RestaurantMenuScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategoryTab by remember { mutableStateOf("Tất cả") }
 
-    // Trạng thái cho Dialog thêm/sửa món
     var showAddDialog by remember { mutableStateOf(false) }
-//    Khai báo để theo dõi
     var editingDish by remember { mutableStateOf<Dish?>(null) }
 
-    // Xử lý thông báo lỗi
     LaunchedEffect(error) {
         error?.let {
-            // Có thể hiển thị Toast ở đây
             viewModel.clearError()
         }
     }
@@ -58,21 +53,15 @@ fun RestaurantMenuScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 88.dp)
         ) {
-            item {
-                Header(
-                    avatarRes = R.drawable.banner1,
-                    onNotificationClick = { /* TODO: Handle notification click */ }
-                )
-            }
-            item { ScreenTitle(title = "Quản lý thực đơn", modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) }
+            // Đã xóa phần Header theo yêu cầu
+            item { ScreenTitle(title = "Quản lý thực đơn", modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) }
             item { SearchBar(query = searchQuery, onQueryChange = { searchQuery = it }, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) }
             item { CategoryTabs(selectedCategory = selectedCategoryTab, onCategorySelected = { selectedCategoryTab = it }, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) }
 
             if (isLoading && dishes.isEmpty()) {
                 item { Box(Modifier.fillMaxWidth().padding(50.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
             }
-//      Lấy món ăn hiển thị lên màn hình và có nút sửa xóa
-//            Ở nút sửa thì đưa dữ liệu vào và cho dish vào để phân biệt thêm và sửa
+
             items(items = filteredDishes, key = { it.id }) { dish ->
                 RestaurantDishItem(
                     dishName = dish.name,
@@ -83,14 +72,13 @@ fun RestaurantMenuScreen(
                     onEditClick = { editingDish = dish; showAddDialog = true },
                     onDeleteClick = { viewModel.deleteDish(dish.id) },
                     modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 16.dp),
-                    // BỔ SUNG DÒNG NÀY ĐỂ FIX LỖI BÁO ĐỎ:
                     onToggleAvailability = { isChecked ->
                         viewModel.toggleDishAvailability(dish)
                     }
                 )
             }
         }
-//  Thêm sản phẩm mới
+
         FloatingActionButton(
             onClick = { editingDish = null; showAddDialog = true },
             containerColor = Color(0xFF2159BC),
@@ -100,16 +88,12 @@ fun RestaurantMenuScreen(
         ) {
             Icon(Icons.Default.Add, "Thêm món", modifier = Modifier.size(28.dp))
         }
-// Kiểm tra xem nếu null thì nút thêm còn có thì sửa
+
         if (showAddDialog) {
             DishDialog(
-//                Như ở trên null hoặc có dữ liệu, phân biệt thêm và sửa
                 dish = editingDish,
-//                Thoát ra nếu không muốn
                 onDismiss = { showAddDialog = false },
-//                Đưa dữ liệu nhập liệu vào
                 onConfirm = { name, price, cat, desc, uri ->
-//                    Nếu thêm thì gọi viewmodel và ngược lại thì sửa
                     if (editingDish == null) {
                         viewModel.addDish(name, price, cat, desc, uri)
                     } else {
@@ -121,7 +105,7 @@ fun RestaurantMenuScreen(
         }
     }
 }
-//    Dialog thêm sửa món ăn giao diện
+
 @Composable
 fun DishDialog(
     dish: Dish?,
@@ -149,7 +133,6 @@ fun DishDialog(
                     label = { Text("Tên món") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                // Thêm ô nhập danh mục để chủ quán tự điền thay vì bị cố định "Món chính"
                 OutlinedTextField(
                     value = category,
                     onValueChange = { category = it },

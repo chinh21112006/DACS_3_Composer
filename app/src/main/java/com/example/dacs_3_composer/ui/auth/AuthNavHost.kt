@@ -11,7 +11,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.dacs_3_composer.ui.auth.login.LoginScreen
-import com.example.dacs_3_composer.ui.auth.signup.RegisterScreen
+import com.example.dacs_3_composer.ui.auth.register.RegisterScreen
 import com.example.dacs_3_composer.ui.user.MainRouteContainerUser
 
 // Định nghĩa tên các màn hình (Routes)
@@ -33,7 +33,6 @@ fun AuthNavHost(
     // Hiển thị Toast thông báo và xử lý nhảy màn hình theo Phân Quyền
     LaunchedEffect(authState) {
         if (authState.isNotEmpty()) {
-            // Không hiển thị Toast khi đang chạy các hiệu ứng loading tránh phiền phức
             if (authState != "Loading..." && authState != "Đợi xí, đang xử lý..." && authState != "Đang kết nối với Google...") {
                 Toast.makeText(context, authState, Toast.LENGTH_SHORT).show()
             }
@@ -54,42 +53,34 @@ fun AuthNavHost(
                 authViewModel.clearAuthState()
             }
             else if (authState == "Đăng nhập Restaurant thành công!") {
-                // 🌟 BỔ SUNG: Nhảy sang luồng giao diện của Chủ nhà hàng quản lý món ăn
                 navController.navigate("restaurant_home") {
                     popUpTo(AuthScreen.Login.route) { inclusive = true }
                 }
                 authViewModel.clearAuthState()
             }
             else if (authState == "Đăng nhập Shipper thành công!") {
-                // 🌟 BỔ SUNG: Nhảy sang luồng giao diện của Tài xế đi giao hàng
                 navController.navigate("shipper_home") {
                     popUpTo(AuthScreen.Login.route) { inclusive = true }
                 }
                 authViewModel.clearAuthState()
             }
             else if (authState == "Đăng nhập Admin thành công!") {
-                // 🌟 BỔ SUNG: Nhảy sang luồng giao diện Tổng quản lý hệ thống Admin
                 navController.navigate("admin_home") {
                     popUpTo(AuthScreen.Login.route) { inclusive = true }
                 }
                 authViewModel.clearAuthState()
             }
 
-            // 3. XỬ LÝ KHI CÓ LỖI HOẶC HỦY (Báo xong dọn sạch trạng thái để không bị lặp Toast)
             else if (authState != "Loading..." && authState != "Đợi xí, đang xử lý..." && authState != "Đang kết nối với Google...") {
                 authViewModel.clearAuthState()
             }
         }
     }
 
-    // Cấu hình danh sách các màn hình trong toàn App
     NavHost(
         navController = navController,
-        startDestination = AuthScreen.Login.route // Màn hình đầu tiên xuất hiện là Login
+        startDestination = AuthScreen.Login.route
     ) {
-        // ==========================================
-        // KHỐI 1: MÀN HÌNH ĐĂNG NHẬP (LOGIN)
-        // ==========================================
         composable(route = AuthScreen.Login.route) {
             LoginScreen(
                 onLoginClick = { email, password ->
@@ -98,21 +89,17 @@ fun AuthNavHost(
                 onSignUpClick = {
                     navController.navigate(AuthScreen.SignUp.route)
                 },
-                onFacebookClick = { /* Xử lý FB nếu cần */ },
+                onFacebookClick = { /* Xử lý FB */ },
                 onGoogleClick = {
-                    // 🌟 KẾT NỐI: Gọi hàm đăng nhập Google từ ViewModel lên UI thành công!
                     authViewModel.loginWithGoogle(context)
                 }
             )
         }
 
-        // ==========================================
-        // KHỐI 2: MÀN HÌNH ĐĂNG KÝ (SIGN UP)
-        // ==========================================
         composable(route = AuthScreen.SignUp.route) {
             RegisterScreen(
-                onRegisterClick = { email, password, confirmPass ->
-                    authViewModel.registerUser(email, password, confirmPass)
+                onRegisterClick = { fullName, phoneNumber, email, password, confirmPass, role ->
+                    authViewModel.registerUser(fullName, phoneNumber, email, password, confirmPass, role)
                 },
                 onNavigateToLogin = {
                     navController.popBackStack()
@@ -120,9 +107,6 @@ fun AuthNavHost(
             )
         }
 
-        // ==========================================
-        // KHỐI 3: GIAO DIỆN USER (MÀN HÌNH KHÁCH MUA HÀNG)
-        // ==========================================
         composable(route = "user_home") {
             MainRouteContainerUser(
                 onLogout = {
@@ -134,24 +118,14 @@ fun AuthNavHost(
             )
         }
 
-        // ==========================================
-        // KHỐI 4: GIAO DIỆN RESTAURANT (CHỦ QUÁN ĂN) - Chờ thiết kế UI
-        // ==========================================
         composable(route = "restaurant_home") {
-            // Tạm thời hiển thị một màn hình trống báo danh tính cho tới khi bạn code UI riêng
             androidx.compose.material3.Text("Giao diện Quản lý của Nhà hàng (Đang phát triển)")
         }
 
-        // ==========================================
-        // KHỐI 5: GIAO DIỆN SHIPPER (TÀI XẾ) - Chờ thiết kế UI
-        // ==========================================
         composable(route = "shipper_home") {
             androidx.compose.material3.Text("Giao diện Nhận đơn của Shipper (Đang phát triển)")
         }
 
-        // ==========================================
-        // KHỐI 6: GIAO DIỆN ADMIN (QUẢN TRỊ VIÊN) - Chờ thiết kế UI
-        // ==========================================
         composable(route = "admin_home") {
             androidx.compose.material3.Text("Giao diện Tổng quản lý Admin Hệ Thống (Đang phát triển)")
         }
