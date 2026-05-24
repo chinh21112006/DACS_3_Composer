@@ -19,15 +19,17 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage // 🎯 Đảm bảo bạn đã thêm dependency Coil vào build.gradle nhé
+import coil.compose.AsyncImage
 
 @Composable
 fun CustomerCardItem(
     name: String,
     phone: String,
-    email: String,      // 🎯 Thay thế cho address cũ
-    role: String,       // 🎯 Thêm mới thuộc tính Vai trò
-    avatarUrl: String,  // 🎯 Thêm mới thuộc tính Ảnh đại diện
+    email: String,
+    role: String,
+    avatarUrl: String,
+    address: String,
+    vehicleName: String,
     isAvailable: Boolean,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -42,12 +44,12 @@ fun CustomerCardItem(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // Phần Header: Ảnh đại diện + Tên SĐT + Trạng thái badge
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // 🎯 THAY ĐỔI: Hiển thị Avatar từ URL (nếu trống thì fallback về dạng Box chữ cái)
                 if (avatarUrl.isNotBlank()) {
                     AsyncImage(
                         model = avatarUrl,
-                        contentDescription = "Avatar $name",
+                        contentDescription = "Avatar",
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
@@ -77,7 +79,6 @@ fun CustomerCardItem(
                     Text(text = phone, fontSize = 13.sp, color = Color(0xFF727785))
                 }
 
-                // Badge Trạng thái hoạt động
                 Box(
                     modifier = Modifier
                         .background(
@@ -97,7 +98,7 @@ fun CustomerCardItem(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 🎯 THAY ĐỔI: Thêm thông tin Role phía trên Email
+            // Nội dung chi tiết: Vai trò, Email, Địa chỉ
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(text = "Vai trò: ", fontSize = 13.sp, color = Color(0xFF727785))
                 Text(
@@ -109,17 +110,18 @@ fun CustomerCardItem(
             }
 
             Spacer(modifier = Modifier.height(2.dp))
+            Text(text = "Email: ${email.ifBlank { "Chưa cập nhật email" }}", fontSize = 13.sp, color = Color(0xFF4A5568))
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(text = "Địa chỉ: ${address.ifBlank { "Chưa cập nhật địa chỉ" }}", fontSize = 13.sp, color = Color(0xFF4A5568))
 
-            // 🎯 THAY ĐỔI: Chuyển đổi nhãn hiển thị từ "Địa chỉ" thành "Email"
-            Text(
-                text = "Email: ${email.ifBlank { "Chưa cập nhật email" }}",
-                fontSize = 13.sp,
-                color = Color(0xFF4A5568)
-            )
+            if (role.lowercase() == "shipper" && vehicleName.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(text = "Phương tiện: $vehicleName", fontSize = 13.sp, color = Color(0xFF4A5568), fontWeight = FontWeight.Medium)
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Hàng nút hành động: Sửa, Xóa, Khóa
+            // Hàng nút hành động dưới cùng
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -153,16 +155,20 @@ fun CustomerCardItem(
                     }
                 }
 
+                // 🎯 NÚT KHÓA THÔNG MINH ĐÃ ĐƯỢC ĐỔI ICON TRỰC QUAN THEO YÊU CẦU
                 IconButton(
                     onClick = onLockToggle,
                     modifier = Modifier
-                        .background(color = if (isLocked) Color(0xFFFFEAEA) else Color(0xFFF5F6F8), shape = CircleShape)
+                        .background(
+                            color = if (isLocked) Color(0xFFFFEBEE) else Color(0xFFECEFF1),
+                            shape = CircleShape
+                        )
                         .size(40.dp)
                 ) {
                     Icon(
                         imageVector = if (isLocked) Icons.Outlined.LockOpen else Icons.Outlined.Block,
                         contentDescription = null,
-                        tint = if (isLocked) Color(0xFFE74C3C) else Color(0xFF727785),
+                        tint = if (isLocked) Color(0xFFD32F2F) else Color(0xFF546E7A),
                         modifier = Modifier.size(18.dp)
                     )
                 }

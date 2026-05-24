@@ -18,23 +18,21 @@ import androidx.navigation.compose.rememberNavController
 import com.example.dacs_3_composer.ui.admin.analytics.AdminAnalyticsScreen
 import com.example.dacs_3_composer.ui.admin.category.AdminCategoryScreen
 import com.example.dacs_3_composer.ui.admin.complaint.AdminComplaintScreen
-// Import thêm các màn hình Shipper/Khách hàng nếu bạn đã tạo file riêng, hoặc tạm thời dùng Box thay thế:
-import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.Alignment
 import com.example.dacs_3_composer.ui.admin.customer.AdminCustomerScreen
-import com.example.dacs_3_composer.ui.admin.shipper.AdminShipperScreen
+import com.example.dacs_3_composer.ui.admin.profile.AdminProfileScreen
 
 @Composable
 fun MainRouteContainerAdmin(
+    onLogoutCallback: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
 
-    // Danh sách 5 mục hiển thị dưới thanh BottomBar điều hướng của Super Admin giống hệt ảnh mẫu
+    // Danh sách 5 mục hiển thị dưới thanh BottomBar điều hướng của Super Admin
     val navigationItems = listOf(
         NavigationAdmin.Overview,
         NavigationAdmin.Orders,
-        NavigationAdmin.Shippers,
+        NavigationAdmin.Profile,
         NavigationAdmin.Categories,
         NavigationAdmin.Customers
     )
@@ -82,7 +80,7 @@ fun MainRouteContainerAdmin(
                         },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = Color.White,
-                            selectedTextColor = Color(0xFF2159BC), // Màu xanh chủ đạo của app giống nút nhấn
+                            selectedTextColor = Color(0xFF2159BC), // Màu xanh chủ đạo của app
                             indicatorColor = Color(0xFF2159BC),
                             unselectedIconColor = Color(0xFFC4C7C5),
                             unselectedTextColor = Color(0xFF727785)
@@ -107,12 +105,6 @@ fun MainRouteContainerAdmin(
                 AdminComplaintScreen()
             }
 
-            // Tab 3: Quản lý Shipper (Nhãn hiển thị UI: Cửa hàng)
-            composable(NavigationAdmin.Shippers.route) {
-                AdminShipperScreen()
-
-            }
-
             // Tab 4: Quản lý Danh mục chung (Nhãn hiển thị UI: Thực đơn)
             composable(NavigationAdmin.Categories.route) {
                 AdminCategoryScreen()
@@ -121,6 +113,17 @@ fun MainRouteContainerAdmin(
             // Tab 5: Quản lý Khách hàng (Nhãn hiển thị UI: Cá nhân)
             composable(NavigationAdmin.Customers.route) {
                 AdminCustomerScreen()
+            }
+
+            // Tab 3: Quản lý Hồ sơ & Cài đặt hệ thống
+            composable(NavigationAdmin.Profile.route) {
+                // 🎯 Đã loại bỏ 'onNavigateToAccountInfo' để khớp hoàn toàn với cấu trúc Dialog sửa tại chỗ của Screen
+                AdminProfileScreen(
+                    onNavigateToVehicleManagement = { /* Điều hướng tới màn hình quản lý xe nếu có */ },
+                    onNavigateToNotification = { /* Điều hướng tới màn hình Payout Settings hoặc thông báo */ },
+                    onNavigateToSupport = { /* Điều hướng tới bộ phận hỗ trợ */ },
+                    onLogoutCallbackk = (onLogoutCallback)
+                )
             }
         }
     }

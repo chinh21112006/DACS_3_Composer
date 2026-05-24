@@ -20,41 +20,81 @@ fun AdminCustomerScreen(
 ) {
     val customers by viewModel.customers.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val selectedRoleFilter by viewModel.selectedRoleFilter.collectAsState()
     val totalCount by viewModel.totalCount.collectAsState()
 
     var showDialog by remember { mutableStateOf(false) }
     var selectedUserForEdit by remember { mutableStateOf<User?>(null) }
 
-    // Các biến State để lưu giá trị nhập liệu trong Dialog
     var inputName by remember { mutableStateOf("") }
     var inputPhone by remember { mutableStateOf("") }
     var inputEmail by remember { mutableStateOf("") }
     var inputAddress by remember { mutableStateOf("") }
     var inputVehicleName by remember { mutableStateOf("") }
 
-    // State cho việc chọn Quyền/Vai trò (Dropdown Menu)
     var inputRole by remember { mutableStateOf("user") }
     var expandedDropdown by remember { mutableStateOf(false) }
     val roleOptions = listOf("admin", "restaurant", "user", "shipper")
 
-    val filteredCustomers = customers.filter {
-        it.name.contains(searchQuery, ignoreCase = true) || it.phone.contains(searchQuery)
+    // Danh sách các Tab bộ lọc hiển thị trên TopBar
+    val filterTabs = listOf("Tất cả", "Admin", "Restaurant", "User", "Shipper")
+
+    // 🔥 XỬ LÝ LỌC KÉP: Lọc theo vai trò trước, sau đó lọc theo nội dung Tìm Kiếm
+    val filteredCustomers = customers.filter { customer ->
+        val matchesRole = (selectedRoleFilter == "all") || (customer.role.lowercase() == selectedRoleFilter)
+        val matchesSearch = customer.name.contains(searchQuery, ignoreCase = true) || customer.phone.contains(searchQuery)
+        matchesRole && matchesSearch
     }
 
     Scaffold(
         topBar = {
-            CustomerTopBar(
-                onAddUserClick = {
-                    selectedUserForEdit = null
-                    inputName = ""
-                    inputPhone = ""
-                    inputEmail = ""
-                    inputAddress = ""
-                    inputVehicleName = ""
-                    inputRole = "user"
-                    showDialog = true
+            Column {
+                // 1. Phần TopBar tiêu đề gốc kèm nút thêm mới
+                CustomerTopBar(
+                    onAddUserClick = {
+                        selectedUserForEdit = null
+                        inputName = ""
+                        inputPhone = ""
+                        inputEmail = ""
+                        inputAddress = ""
+                        inputVehicleName = ""
+                        inputRole = "user"
+                        showDialog = true
+                    }
+                )
+
+                // 2. THANH TAB LỌC THEO VAI TRÒ (Mới cập nhật trực quan)
+                ScrollableTabRow(
+                    selectedTabIndex = filterTabs.indexOfFirst {
+                        if (selectedRoleFilter == "all") it == "Tất cả" else it.lowercase() == selectedRoleFilter
+                    }.coerceAtLeast(0),
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF0052CC),
+                    edgePadding = 16.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    filterTabs.forEach { tabName ->
+                        val isSelected = if (selectedRoleFilter == "all") tabName == "Tất cả" else tabName.lowercase() == selectedRoleFilter
+                        Tab(
+                            selected = isSelected,
+                            onClick = {
+                                if (tabName == "Tất cả") {
+                                    viewModel.onRoleFilterChanged("all")
+                                } else {
+                                    viewModel.onRoleFilterChanged(tabName)
+                                }
+                            },
+                            text = {
+                                Text(
+                                    text = tabName,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = if (isSelected) Color(0xFF0052CC) else Color(0xFF727785)
+                                )
+                            }
+                        )
+                    }
                 }
-            )
+            }
         },
         containerColor = Color(0xFFF8F9FA)
     ) { innerPadding ->
@@ -65,8 +105,9 @@ fun AdminCustomerScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
+            item { Spacer(modifier = Modifier.height(8.dp)) }
 
+            // Ô tìm kiếm hoạt động Realtime
             item {
                 CustomerSearchBar(
                     query = searchQuery,
@@ -74,20 +115,24 @@ fun AdminCustomerScreen(
                 )
             }
 
+            // Hàng thống kê cập nhật dữ liệu đếm linh hoạt theo bộ lọc hiện tại
             item {
                 CustomerStatsRow(
                     totalCustomers = "$totalCount người",
-                    newThisMonth = "+${filteredCustomers.size} tìm thấy"
+                    newThisMonth = "${filteredCustomers.size} kết quả"
                 )
             }
 
-            items(filteredCustomers) { customer ->
+            // Danh sách kết quả hiển thị sau khi lọc thành công
+            items(filteredCustomers, key = { it.uid }) { customer ->
                 CustomerCardItem(
                     name = customer.name.ifBlank { "Chưa đặt tên" },
                     phone = customer.phone.ifBlank { "Không có SĐT" },
                     email = customer.email.ifBlank { "Chưa có Email" },
                     role = customer.role.ifBlank { "user" },
                     avatarUrl = customer.avatarUrl,
+                    address = customer.address,
+                    vehicleName = customer.vehicleName,
                     isAvailable = customer.isAvailable,
                     onEditClick = {
                         selectedUserForEdit = customer
@@ -111,7 +156,7 @@ fun AdminCustomerScreen(
             item { Spacer(modifier = Modifier.height(16.dp)) }
         }
 
-        // HỘP THOẠI (DIALOG) THÊM & SỬA ĐẦY ĐỦ THÔNG TIN
+        // Hộp thoại Thêm/Sửa thông tin tài khoản
         if (showDialog) {
             AlertDialog(
                 onDismissRequest = { showDialog = false },
@@ -148,7 +193,6 @@ fun AdminCustomerScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        // 🎯 THÀNH PHẦN CHỌN VAI TRÒ (DROPDOWN MENU)
                         ExposedDropdownMenuBox(
                             expanded = expandedDropdown,
                             onExpandedChange = { expandedDropdown = !expandedDropdown },
@@ -182,7 +226,6 @@ fun AdminCustomerScreen(
                             }
                         }
 
-                        // 🎯 CHỈ HIỂN THỊ TRƯỜNG NHẬP TÊN XE NẾU CHỌN ROLE LÀ SHIPPER
                         if (inputRole == "shipper") {
                             OutlinedTextField(
                                 value = inputVehicleName,
@@ -200,7 +243,6 @@ fun AdminCustomerScreen(
                             if (inputName.isNotBlank() && inputPhone.isNotBlank() && inputEmail.isNotBlank()) {
                                 val currentUser = selectedUserForEdit
                                 if (currentUser == null) {
-                                    // Gọi hàm thêm mới trong ViewModel (Tự tạo mật khẩu bằng SĐT hoặc xử lý sau)
                                     viewModel.addCustomer(
                                         name = inputName,
                                         phone = inputPhone,
@@ -210,7 +252,6 @@ fun AdminCustomerScreen(
                                         vehicleName = if (inputRole == "shipper") inputVehicleName else ""
                                     )
                                 } else {
-                                    // Gọi hàm sửa thông tin
                                     viewModel.updateCustomer(
                                         uid = currentUser.uid,
                                         name = inputName,
