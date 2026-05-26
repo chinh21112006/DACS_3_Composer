@@ -1,6 +1,7 @@
 package com.example.dacs_3_composer.ui.admin.shipper.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,14 +14,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.dacs_3_composer.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShipperTopBar(
-    onAddShipperClick: () -> Unit = {}
+    adminName: String = "Gourmet Admin",
+    avatarUrl: String = "",
+    onAddShipperClick: () -> Unit = {},
+    onAvatarClick: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -28,19 +38,31 @@ fun ShipperTopBar(
             .background(Color.White)
             .padding(16.dp)
     ) {
-        // Hàng Avatar & Tên Admin
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.LightGray))
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(avatarUrl.ifEmpty { R.drawable.banner1 })
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Avatar",
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .clickable { onAvatarClick() },
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = R.drawable.banner1),
+                error = painterResource(id = R.drawable.banner1)
+            )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Gourmet Admin",
+                text = adminName.ifEmpty { "Gourmet Admin" },
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF191C1D),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).clickable { onAvatarClick() }
             )
             IconButton(onClick = {}) {
                 BadgedBox(badge = { Badge(containerColor = Color.Red) }) {
@@ -50,14 +72,9 @@ fun ShipperTopBar(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-
-        // Tiêu đề chức năng
         Text(text = "Quản lý Shipper", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF191C1D))
         Text(text = "Giám sát hoạt động và điều phối đội ngũ giao hàng", fontSize = 14.sp, color = Color(0xFF727785))
-
         Spacer(modifier = Modifier.height(16.dp))
-
-        // Nút Thêm Shipper mới
         Button(
             onClick = onAddShipperClick,
             modifier = Modifier.fillMaxWidth(),

@@ -7,7 +7,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dacs_3_composer.data.model.User
 import com.example.dacs_3_composer.ui.admin.customer.components.*
@@ -25,14 +27,12 @@ fun AdminCustomerScreen(
     var showDialog by remember { mutableStateOf(false) }
     var selectedUserForEdit by remember { mutableStateOf<User?>(null) }
 
-    // Các biến State để lưu giá trị nhập liệu trong Dialog
     var inputName by remember { mutableStateOf("") }
     var inputPhone by remember { mutableStateOf("") }
     var inputEmail by remember { mutableStateOf("") }
     var inputAddress by remember { mutableStateOf("") }
     var inputVehicleName by remember { mutableStateOf("") }
 
-    // State cho việc chọn Quyền/Vai trò (Dropdown Menu)
     var inputRole by remember { mutableStateOf("user") }
     var expandedDropdown by remember { mutableStateOf(false) }
     val roleOptions = listOf("admin", "restaurant", "user", "shipper")
@@ -42,20 +42,6 @@ fun AdminCustomerScreen(
     }
 
     Scaffold(
-        topBar = {
-            CustomerTopBar(
-                onAddUserClick = {
-                    selectedUserForEdit = null
-                    inputName = ""
-                    inputPhone = ""
-                    inputEmail = ""
-                    inputAddress = ""
-                    inputVehicleName = ""
-                    inputRole = "user"
-                    showDialog = true
-                }
-            )
-        },
         containerColor = Color(0xFFF8F9FA)
     ) { innerPadding ->
         LazyColumn(
@@ -63,15 +49,50 @@ fun AdminCustomerScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
+            item {
+                Column {
+                    Text(
+                        text = "Quản lý Khách hàng",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF191C1D)
+                    )
+                    Text(
+                        text = "Quản lý và theo dõi hành vi mua sắm của khách hàng.",
+                        fontSize = 14.sp,
+                        color = Color(0xFF727785)
+                    )
+                }
+            }
 
             item {
                 CustomerSearchBar(
                     query = searchQuery,
                     onQueryChange = { viewModel.onSearchQueryChanged(it) }
                 )
+            }
+
+            item {
+                Button(
+                    onClick = {
+                        selectedUserForEdit = null
+                        inputName = ""
+                        inputPhone = ""
+                        inputEmail = ""
+                        inputAddress = ""
+                        inputVehicleName = ""
+                        inputRole = "user"
+                        showDialog = true
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2159BC)),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                ) {
+                    Text("Thêm Khách Hàng Mới")
+                }
             }
 
             item {
@@ -107,11 +128,8 @@ fun AdminCustomerScreen(
                     }
                 )
             }
-
-            item { Spacer(modifier = Modifier.height(16.dp)) }
         }
 
-        // HỘP THOẠI (DIALOG) THÊM & SỬA ĐẦY ĐỦ THÔNG TIN
         if (showDialog) {
             AlertDialog(
                 onDismissRequest = { showDialog = false },
@@ -148,7 +166,6 @@ fun AdminCustomerScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        // 🎯 THÀNH PHẦN CHỌN VAI TRÒ (DROPDOWN MENU)
                         ExposedDropdownMenuBox(
                             expanded = expandedDropdown,
                             onExpandedChange = { expandedDropdown = !expandedDropdown },
@@ -182,7 +199,6 @@ fun AdminCustomerScreen(
                             }
                         }
 
-                        // 🎯 CHỈ HIỂN THỊ TRƯỜNG NHẬP TÊN XE NẾU CHỌN ROLE LÀ SHIPPER
                         if (inputRole == "shipper") {
                             OutlinedTextField(
                                 value = inputVehicleName,
@@ -195,12 +211,11 @@ fun AdminCustomerScreen(
                 },
                 confirmButton = {
                     Button(
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC)),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2159BC)),
                         onClick = {
                             if (inputName.isNotBlank() && inputPhone.isNotBlank() && inputEmail.isNotBlank()) {
                                 val currentUser = selectedUserForEdit
                                 if (currentUser == null) {
-                                    // Gọi hàm thêm mới trong ViewModel (Tự tạo mật khẩu bằng SĐT hoặc xử lý sau)
                                     viewModel.addCustomer(
                                         name = inputName,
                                         phone = inputPhone,
@@ -210,7 +225,6 @@ fun AdminCustomerScreen(
                                         vehicleName = if (inputRole == "shipper") inputVehicleName else ""
                                     )
                                 } else {
-                                    // Gọi hàm sửa thông tin
                                     viewModel.updateCustomer(
                                         uid = currentUser.uid,
                                         name = inputName,

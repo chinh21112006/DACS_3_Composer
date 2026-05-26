@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -25,40 +26,65 @@ import com.example.dacs_3_composer.R
 fun RestaurantTopBar(
     name: String,
     avatarUrl: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onMessageClick: () -> Unit = {}
 ) {
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xFFF8F9FA))
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .background(Color.White) // Chỉnh lại nền trắng giống Admin
+            .padding(16.dp)
     ) {
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(avatarUrl.ifEmpty { R.drawable.banner1 })
-                .crossfade(true)
-                .build(),
-            contentDescription = "Avatar",
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop,
-            placeholder = painterResource(id = R.drawable.banner1),
-            error = painterResource(id = R.drawable.banner1)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
+        // Hàng 1: Avatar, Tên và Các icon chức năng
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(avatarUrl.ifEmpty { R.drawable.banner1 })
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Avatar",
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = R.drawable.banner1),
+                error = painterResource(id = R.drawable.banner1)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = name.ifEmpty { "Restaurant" },
+                text = name.ifEmpty { "Gourmet Partner" },
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF2159BC)
+                color = Color(0xFF191C1D),
+                modifier = Modifier.weight(1f)
             )
-            Text("Hệ thống đang vận hành ổn định", fontSize = 12.sp, color = Color(0xFF727785))
+            IconButton(onClick = onMessageClick) {
+                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Tin nhắn", tint = Color(0xFF191C1D))
+            }
+            IconButton(onClick = {}) {
+                BadgedBox(badge = { Badge(containerColor = Color.Red) }) {
+                    Icon(Icons.Default.NotificationsNone, contentDescription = "Thông báo", tint = Color(0xFF191C1D))
+                }
+            }
         }
-        IconButton(onClick = {}) {
-            Icon(Icons.Default.NotificationsNone, contentDescription = "Thông báo", tint = Color(0xFF2159BC))
-        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Hàng 2: Tiêu đề màn hình
+        Text(
+            text = "Trang chủ nhà hàng", 
+            fontSize = 24.sp, 
+            fontWeight = FontWeight.Bold, 
+            color = Color(0xFF191C1D)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Hệ thống đang vận hành ổn định", 
+            fontSize = 13.sp, 
+            color = Color(0xFF727785)
+        )
     }
 }

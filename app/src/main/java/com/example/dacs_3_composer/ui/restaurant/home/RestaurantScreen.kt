@@ -15,6 +15,7 @@ import ui.restaurant.home.components.WeeklyRevenueCard
 
 @Composable
 fun RestaurantHomeScreen(
+    onMessageClick: () -> Unit,
     modifier: Modifier = Modifier,
     homeViewModel: RestaurantHomeViewModel = viewModel()
 ) {
@@ -28,7 +29,8 @@ fun RestaurantHomeScreen(
         item { 
             RestaurantTopBar(
                 name = homeViewModel.restaurantName,
-                avatarUrl = homeViewModel.restaurantAvatarUrl
+                avatarUrl = homeViewModel.restaurantAvatarUrl,
+                onMessageClick = onMessageClick
             ) 
         }
         item { GreetingSection() }

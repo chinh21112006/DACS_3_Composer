@@ -2,6 +2,7 @@ package com.example.dacs_3_composer.ui.user.search.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -19,6 +20,7 @@ fun SearchHeader(
     location: String,
     brandName: String,
     onSearchClick: () -> Unit,
+    onMessageClick: () -> Unit = {}, // 🎯 Thêm callback nhắn tin
     modifier: Modifier = Modifier
 ) {
     TopAppBar(
@@ -32,39 +34,38 @@ fun SearchHeader(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Vị trí bên trái
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.LocationOn,
                         contentDescription = "Vị trí",
                         tint = Color(0xFF2159BC),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = location,
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = Color.Black,
+                        maxLines = 1
                     )
                 }
 
-                // Tên thương hiệu ở giữa
                 Text(
                     text = brandName,
-                    color = Color(0xFF3B82F6),
+                    color = Color(0xFF2159BC),
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp)
                 )
 
-                // Icon tìm kiếm bên phải
-                IconButton(onClick = onSearchClick) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Tìm kiếm",
-                        tint = Color(0xFF2159BC),
-                        modifier = Modifier.size(20.dp)
-                    )
+                Row {
+                    IconButton(onClick = onSearchClick) {
+                        Icon(Icons.Default.Search, null, tint = Color(0xFF2159BC), modifier = Modifier.size(22.dp))
+                    }
+                    IconButton(onClick = onMessageClick) {
+                        Icon(Icons.AutoMirrored.Filled.Chat, null, tint = Color(0xFF2159BC), modifier = Modifier.size(22.dp))
+                    }
                 }
             }
         }

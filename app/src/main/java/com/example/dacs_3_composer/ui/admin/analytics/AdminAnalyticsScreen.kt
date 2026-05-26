@@ -4,15 +4,31 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dacs_3_composer.ui.admin.analytics.components.*
 
 @Composable
-fun AdminAnalyticsScreen() {
+fun AdminAnalyticsScreen(
+    onChatClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
+    viewModel: AdminAnalyticsViewModel = viewModel()
+) {
+    val adminInfo by viewModel.adminInfo.collectAsState()
+
     Scaffold(
-        topBar = { AnalyticsTopBar() },
+        topBar = { 
+            AnalyticsTopBar(
+                name = adminInfo?.name ?: "Admin",
+                avatarUrl = adminInfo?.avatarUrl ?: "",
+                onChatClick = onChatClick,
+                onAvatarClick = onProfileClick
+            ) 
+        },
         containerColor = Color(0xFFF8F9FA)
     ) { innerPadding ->
         LazyColumn(

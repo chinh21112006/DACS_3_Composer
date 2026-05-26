@@ -12,13 +12,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.dacs_3_composer.ui.admin.category.components.*
 
 @Composable
 fun AdminCategoryScreen() {
     Scaffold(
-        topBar = { CategoryTopBar() },
         floatingActionButton = {
             FloatingActionButton(onClick = {}, containerColor = Color(0xFF0052CC), contentColor = Color.White) {
                 Icon(Icons.Default.Add, contentDescription = null)
@@ -32,14 +33,26 @@ fun AdminCategoryScreen() {
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
-            contentPadding = PaddingValues(bottom = 24.dp)
+            contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
+            item {
+                Column {
+                    Text(
+                        text = "Quản lý Danh mục",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF191C1D)
+                    )
+                    Text(
+                        text = "Tạo và điều chỉnh các nhóm thực đơn dùng chung cho toàn hệ thống nhà hàng.",
+                        fontSize = 14.sp,
+                        color = Color(0xFF727785)
+                    )
+                }
+            }
 
-            // 1. Thanh tìm kiếm danh mục
             item { CategorySearchBar() }
 
-            // 2. Thẻ danh mục: Món chính
             item {
                 CategoryCardItem(
                     title = "Món chính",
@@ -51,7 +64,6 @@ fun AdminCategoryScreen() {
                 )
             }
 
-            // 3. Thẻ danh mục: Khai vị
             item {
                 CategoryCardItem(
                     title = "Khai vị",
@@ -63,7 +75,6 @@ fun AdminCategoryScreen() {
                 )
             }
 
-            // 4. Thẻ danh mục: Đồ uống
             item {
                 CategoryCardItem(
                     title = "Đồ uống",
@@ -75,7 +86,6 @@ fun AdminCategoryScreen() {
                 )
             }
 
-            // 5. Thẻ danh mục: Tráng miệng
             item {
                 CategoryCardItem(
                     title = "Tráng miệng",
@@ -87,7 +97,6 @@ fun AdminCategoryScreen() {
                 )
             }
 
-            // 6. Nút nét đứt thêm danh mục mới dưới đáy danh sách
             item { AddCategoryDashedButton() }
         }
     }

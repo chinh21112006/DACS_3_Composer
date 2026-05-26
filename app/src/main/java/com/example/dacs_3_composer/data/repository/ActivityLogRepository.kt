@@ -21,7 +21,9 @@ class ActivityLogRepository {
 
         val calendar = Calendar.getInstance()
         val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
-        val dateFormat = SimpleDateFormat("dd 'Tháng' MM", Locale("vi", "VN"))
+        // Fix deprecated Locale constructor
+        val localeVi = Locale.forLanguageTag("vi-VN")
+        val dateFormat = SimpleDateFormat("dd 'Tháng' MM", localeVi)
         
         // Tự động xác định nhãn ngày (Hôm nay, Hôm qua, hoặc ngày cụ thể)
         val dateLabel = "Hôm nay, " + dateFormat.format(calendar.time)
