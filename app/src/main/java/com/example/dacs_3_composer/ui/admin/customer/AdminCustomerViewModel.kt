@@ -2,7 +2,7 @@ package com.example.dacs_3_composer.ui.admin.customer
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
-import com.example.dacs_3_composer.data.model.User // Hãy đảm bảo đường dẫn model User này chuẩn xác
+import com.example.dacs_3_composer.data.model.User
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,12 +11,17 @@ import kotlinx.coroutines.flow.StateFlow
 class AdminCustomerViewModel : ViewModel() {
 
     private val firestore = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
 
     private val _customers = MutableStateFlow<List<User>>(emptyList())
     val customers: StateFlow<List<User>> = _customers
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
+
+    // Quản lý bộ lọc vai trò được chọn trên TopBar ("all", "admin", "restaurant", "user", "shipper")
+    private val _selectedRoleFilter = MutableStateFlow("all")
+    val selectedRoleFilter: StateFlow<String> = _selectedRoleFilter
 
     private val _totalCount = MutableStateFlow(0)
     val totalCount: StateFlow<Int> = _totalCount
@@ -25,22 +30,44 @@ class AdminCustomerViewModel : ViewModel() {
         observeCustomers()
     }
 
-    // 1. Lắng nghe Realtime danh sách Khách hàng từ Firestore
     private fun observeCustomers() {
         firestore.collection("users")
-            // .whereEqualTo("role", "USER") // Bật lên nếu DB của bạn có phân biệt trường role
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    Log.e("AdminCustomer", "Lỗi tải dữ liệu: ", error)
+                    Log.e("AdminCustomerVM", "Lỗi tải dữ liệu người dùng: ", error)
                     return@addSnapshotListener
                 }
 
                 if (snapshot != null) {
                     val list = mutableListOf<User>()
                     for (doc in snapshot.documents) {
-                        val user = doc.toObject(User::class.java)?.copy(uid = doc.id)
-                        if (user != null) {
+                        try {
+                            val uid = doc.id
+                            val name = doc.getString("name") ?: ""
+                            val phone = doc.getString("phone") ?: ""
+                            val email = doc.getString("email") ?: ""
+                            val address = doc.getString("address") ?: ""
+                            val role = doc.getString("role") ?: "user"
+                            val avatarUrl = doc.getString("avatarUrl") ?: ""
+                            val vehicleName = doc.getString("vehicleName") ?: ""
+
+                            val isAvailable = doc.getBoolean("isAvailable")
+                                ?: (doc.getString("status") != "LOCKED")
+
+                            val user = User(
+                                uid = uid,
+                                name = name,
+                                phone = phone,
+                                email = email,
+                                address = address,
+                                role = role,
+                                avatarUrl = avatarUrl,
+                                vehicleName = vehicleName,
+                                isAvailable = isAvailable
+                            )
                             list.add(user)
+                        } catch (e: Exception) {
+                            Log.e("AdminCustomerVM", "Lỗi ép kiểu Document: ${e.message}")
                         }
                     }
                     _customers.value = list
@@ -49,17 +76,20 @@ class AdminCustomerViewModel : ViewModel() {
             }
     }
 
-    // 2. Cập nhật query tìm kiếm
+    // Cập nhật từ khóa tìm kiếm
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
     }
 
-    // 3. THÊM tài khoản khách hàng mới
-    // 1. Hàm Thêm mới tài khoản với đầy đủ các trường dữ liệu tùy chọn
-    fun addCustomer(name: String, phone: String, email: String, address: String, role: String, vehicleName: String) {
-        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+    // Cập nhật bộ lọc vai trò (Tab được nhấn)
+    fun onRoleFilterChanged(role: String) {
+        _selectedRoleFilter.value = role.lowercase()
+    }
 
-        // Tạo tài khoản Auth đồng bộ mật khẩu mặc định là Số điện thoại
+    // THÊM tài khoản mới
+    fun addCustomer(name: String, phone: String, email: String, address: String, role: String, vehicleName: String) {
+        if (email.isBlank() || phone.isBlank()) return
+
         auth.createUserWithEmailAndPassword(email, phone)
             .addOnSuccessListener { authResult ->
                 val uid = authResult.user?.uid ?: ""
@@ -73,17 +103,20 @@ class AdminCustomerViewModel : ViewModel() {
                     "role" to role,
                     "vehicleName" to vehicleName,
                     "isAvailable" to true,
+                    "status" to "ACTIVE",
                     "avatarUrl" to ""
                 )
                 firestore.collection("users").document(uid).set(newCustomer)
             }
             .addOnFailureListener { e ->
-                android.util.Log.e("AdminCustomer", "Lỗi tạo Auth: ${e.message}")
+                Log.e("AdminCustomerVM", "Lỗi không thể tạo Auth: ${e.message}")
             }
     }
 
-    // 2. Hàm Cập nhật thông tin tài khoản
+    // SỬA thông tin tài khoản hiện có
     fun updateCustomer(uid: String, name: String, phone: String, email: String, address: String, role: String, vehicleName: String) {
+        if (uid.isBlank()) return
+
         val updates = mapOf(
             "name" to name,
             "phone" to phone,
@@ -92,27 +125,39 @@ class AdminCustomerViewModel : ViewModel() {
             "role" to role,
             "vehicleName" to vehicleName
         )
-        firestore.collection("users").document(uid).update(updates)
+
+        firestore.collection("users").document(uid)
+            .update(updates)
+            .addOnFailureListener { e ->
+                Log.e("AdminCustomerVM", "Lỗi cập nhật Firestore: ${e.message}")
+            }
     }
 
-    // 5. XÓA tài khoản khách hàng
+    // XÓA tài khoản khỏi hệ thống
     fun deleteCustomer(uid: String) {
+        if (uid.isBlank()) return
         firestore.collection("users").document(uid).delete()
     }
 
-    // 6. THAY ĐỔI TRẠNG THÁI KHÓA/MỞ KHÓA
+    // XỬ LÝ KHÓA / MỞ KHÓA
     fun toggleLockStatus(uid: String, currentAvailable: Boolean) {
-        // Đảo ngược trạng thái hoạt động: nếu đang true thì đổi thành false và ngược lại
-        val nextAvailable = !currentAvailable
+        if (uid.isBlank()) return
 
-        firestore.collection("users")
-            .document(uid)
-            .update("isAvailable", nextAvailable)
+        val nextAvailableState = !currentAvailable
+        val nextStatusString = if (nextAvailableState) "ACTIVE" else "LOCKED"
+
+        val updates = mapOf(
+            "isAvailable" to nextAvailableState,
+            "status" to nextStatusString
+        )
+
+        firestore.collection("users").document(uid)
+            .update(updates)
             .addOnSuccessListener {
-                Log.d("AdminCustomer", "Cập nhật trạng thái khóa thành công!")
+                Log.d("AdminCustomerVM", "Đã cập nhật khóa thành công!")
             }
             .addOnFailureListener { e ->
-                Log.e("AdminCustomer", "Lỗi khi cập nhật trạng thái: ${e.message}")
+                Log.e("AdminCustomerVM", "Lỗi Firebase: ${e.message}")
             }
     }
 }

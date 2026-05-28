@@ -11,10 +11,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.text.DecimalFormat
 
 @Composable
-fun RevenueChartCard() {
+fun RevenueChartCard(revenueDays: List<Double>) { // 🎯 ĐẢM BẢO CÓ THAM SỐ NÀY
     var isWeekSelected by remember { mutableStateOf(true) }
+    val formatter = DecimalFormat("#,###đ")
+    val totalWeekRevenue = revenueDays.sum()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -23,18 +26,16 @@ fun RevenueChartCard() {
         elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header Biểu đồ
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
                 Column {
-                    Text(text = "Biểu đồ doanh thu", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                    Text(text = "Thống kê theo tuần", fontSize = 12.sp, color = Color.Gray)
+                    Text(text = "Biểu đồ doanh thu tuần này", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                    Text(text = "Tổng doanh số: ${formatter.format(totalWeekRevenue)}", fontSize = 13.sp, color = Color(0xFF0052CC), fontWeight = FontWeight.Medium)
                 }
 
-                // Nút Toggle Tuần / Tháng
                 Row(
                     modifier = Modifier
                         .background(Color(0xFFE8EFFF), RoundedCornerShape(20.dp))
@@ -64,21 +65,40 @@ fun RevenueChartCard() {
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Khu vực vẽ biểu đồ tĩnh (Giả lập các đường lưới và khoảng trống)
-            Column(
-                modifier = Modifier.fillMaxWidth().height(140.dp),
-                verticalArrangement = Arrangement.SpaceBetween
+            val maxRevenue = revenueDays.maxOrNull()?.coerceAtLeast(1.0) ?: 1.0
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(130.dp)
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
             ) {
-                repeat(4) {
-                    HorizontalDivider(color = Color(0xFFF1F3F4))
+                revenueDays.forEach { amount ->
+                    val barHeightFactor = (amount / maxRevenue).toFloat().coerceIn(0.05f, 1f)
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight(barHeightFactor)
+                                .width(14.dp)
+                                .background(
+                                    color = if (amount > 0) Color(0xFF0052CC) else Color(0xFFE2E8F0),
+                                    shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
+                                )
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Nhãn trục hoành (X-Axis)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
