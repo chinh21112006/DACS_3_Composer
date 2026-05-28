@@ -7,7 +7,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dacs_3_composer.data.model.User
 import com.example.dacs_3_composer.ui.admin.customer.components.*
@@ -20,7 +22,6 @@ fun AdminCustomerScreen(
 ) {
     val customers by viewModel.customers.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
-    val selectedRoleFilter by viewModel.selectedRoleFilter.collectAsState()
     val totalCount by viewModel.totalCount.collectAsState()
 
     var showDialog by remember { mutableStateOf(false) }
@@ -36,22 +37,47 @@ fun AdminCustomerScreen(
     var expandedDropdown by remember { mutableStateOf(false) }
     val roleOptions = listOf("admin", "restaurant", "user", "shipper")
 
-    // Danh sách các Tab bộ lọc hiển thị trên TopBar
-    val filterTabs = listOf("Tất cả", "Admin", "Restaurant", "User", "Shipper")
-
-    // 🔥 XỬ LÝ LỌC KÉP: Lọc theo vai trò trước, sau đó lọc theo nội dung Tìm Kiếm
-    val filteredCustomers = customers.filter { customer ->
-        val matchesRole = (selectedRoleFilter == "all") || (customer.role.lowercase() == selectedRoleFilter)
-        val matchesSearch = customer.name.contains(searchQuery, ignoreCase = true) || customer.phone.contains(searchQuery)
-        matchesRole && matchesSearch
+    val filteredCustomers = customers.filter {
+        it.name.contains(searchQuery, ignoreCase = true) || it.phone.contains(searchQuery)
     }
 
     Scaffold(
-        topBar = {
-            Column {
-                // 1. Phần TopBar tiêu đề gốc kèm nút thêm mới
-                CustomerTopBar(
-                    onAddUserClick = {
+        containerColor = Color(0xFFF8F9FA)
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
+        ) {
+            item {
+                Column {
+                    Text(
+                        text = "Quản lý Khách hàng",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF191C1D)
+                    )
+                    Text(
+                        text = "Quản lý và theo dõi hành vi mua sắm của khách hàng.",
+                        fontSize = 14.sp,
+                        color = Color(0xFF727785)
+                    )
+                }
+            }
+
+            item {
+                CustomerSearchBar(
+                    query = searchQuery,
+                    onQueryChange = { viewModel.onSearchQueryChanged(it) }
+                )
+            }
+
+            item {
+                Button(
+                    onClick = {
                         selectedUserForEdit = null
                         inputName = ""
                         inputPhone = ""
@@ -60,79 +86,29 @@ fun AdminCustomerScreen(
                         inputVehicleName = ""
                         inputRole = "user"
                         showDialog = true
-                    }
-                )
-
-                // 2. THANH TAB LỌC THEO VAI TRÒ (Mới cập nhật trực quan)
-                ScrollableTabRow(
-                    selectedTabIndex = filterTabs.indexOfFirst {
-                        if (selectedRoleFilter == "all") it == "Tất cả" else it.lowercase() == selectedRoleFilter
-                    }.coerceAtLeast(0),
-                    containerColor = Color.White,
-                    contentColor = Color(0xFF0052CC),
-                    edgePadding = 16.dp,
-                    modifier = Modifier.fillMaxWidth()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2159BC)),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
                 ) {
-                    filterTabs.forEach { tabName ->
-                        val isSelected = if (selectedRoleFilter == "all") tabName == "Tất cả" else tabName.lowercase() == selectedRoleFilter
-                        Tab(
-                            selected = isSelected,
-                            onClick = {
-                                if (tabName == "Tất cả") {
-                                    viewModel.onRoleFilterChanged("all")
-                                } else {
-                                    viewModel.onRoleFilterChanged(tabName)
-                                }
-                            },
-                            text = {
-                                Text(
-                                    text = tabName,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = if (isSelected) Color(0xFF0052CC) else Color(0xFF727785)
-                                )
-                            }
-                        )
-                    }
+                    Text("Thêm Khách Hàng Mới")
                 }
             }
-        },
-        containerColor = Color(0xFFF8F9FA)
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            item { Spacer(modifier = Modifier.height(8.dp)) }
 
-            // Ô tìm kiếm hoạt động Realtime
-            item {
-                CustomerSearchBar(
-                    query = searchQuery,
-                    onQueryChange = { viewModel.onSearchQueryChanged(it) }
-                )
-            }
-
-            // Hàng thống kê cập nhật dữ liệu đếm linh hoạt theo bộ lọc hiện tại
             item {
                 CustomerStatsRow(
                     totalCustomers = "$totalCount người",
-                    newThisMonth = "${filteredCustomers.size} kết quả"
+                    newThisMonth = "+${filteredCustomers.size} tìm thấy"
                 )
             }
 
-            // Danh sách kết quả hiển thị sau khi lọc thành công
-            items(filteredCustomers, key = { it.uid }) { customer ->
+            items(filteredCustomers) { customer ->
                 CustomerCardItem(
                     name = customer.name.ifBlank { "Chưa đặt tên" },
                     phone = customer.phone.ifBlank { "Không có SĐT" },
                     email = customer.email.ifBlank { "Chưa có Email" },
                     role = customer.role.ifBlank { "user" },
                     avatarUrl = customer.avatarUrl,
-                    address = customer.address,
-                    vehicleName = customer.vehicleName,
                     isAvailable = customer.isAvailable,
                     onEditClick = {
                         selectedUserForEdit = customer
@@ -152,11 +128,8 @@ fun AdminCustomerScreen(
                     }
                 )
             }
-
-            item { Spacer(modifier = Modifier.height(16.dp)) }
         }
 
-        // Hộp thoại Thêm/Sửa thông tin tài khoản
         if (showDialog) {
             AlertDialog(
                 onDismissRequest = { showDialog = false },
@@ -238,7 +211,7 @@ fun AdminCustomerScreen(
                 },
                 confirmButton = {
                     Button(
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC)),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2159BC)),
                         onClick = {
                             if (inputName.isNotBlank() && inputPhone.isNotBlank() && inputEmail.isNotBlank()) {
                                 val currentUser = selectedUserForEdit

@@ -1,4 +1,4 @@
-package com.example.dacs_3_composer.ui.admin.customer.components
+package com.example.dacs_3_composer.ui.admin.shipper.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,11 +24,12 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.dacs_3_composer.R
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CustomerTopBar(
+fun ShipperTopBar(
     adminName: String = "Gourmet Admin",
     avatarUrl: String = "",
-    onAddUserClick: () -> Unit,
+    onAddShipperClick: () -> Unit = {},
     onAvatarClick: () -> Unit = {}
 ) {
     Column(
@@ -64,20 +65,18 @@ fun CustomerTopBar(
                 modifier = Modifier.weight(1f).clickable { onAvatarClick() }
             )
             IconButton(onClick = {}) {
-                Icon(Icons.Default.NotificationsNone, null, tint = Color(0xFF191C1D))
+                BadgedBox(badge = { Badge(containerColor = Color.Red) }) {
+                    Icon(Icons.Default.NotificationsNone, contentDescription = null, tint = Color(0xFF2159BC))
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-
-        Text(text = "Quản lý Khách hàng", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF191C1D))
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(text = "Quản lý và theo dõi hành vi mua sắm của khách hàng.", fontSize = 14.sp, color = Color(0xFF727785))
-
-        Spacer(modifier = Modifier.height(12.dp))
-
+        Text(text = "Quản lý Shipper", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF191C1D))
+        Text(text = "Giám sát hoạt động và điều phối đội ngũ giao hàng", fontSize = 14.sp, color = Color(0xFF727785))
+        Spacer(modifier = Modifier.height(16.dp))
         Button(
-            onClick = onAddUserClick,
+            onClick = onAddShipperClick,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC)),
             shape = RoundedCornerShape(12.dp),
@@ -85,7 +84,7 @@ fun CustomerTopBar(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Default.PersonAddAlt1, contentDescription = null, modifier = Modifier.size(20.dp))
-                Text(text = "Thêm Khách Hàng Mới", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(text = "Thêm Shipper mới", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
     }

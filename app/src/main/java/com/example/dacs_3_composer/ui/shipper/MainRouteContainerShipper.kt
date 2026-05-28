@@ -25,8 +25,10 @@ import com.example.dacs_3_composer.ui.shipper.dashboard.ShipperViewModel
 import com.example.dacs_3_composer.ui.shipper.dashboard.detail.ShipperOrderDetailScreen
 import com.example.dacs_3_composer.ui.shipper.orders.ShipperOrdersScreen
 import com.example.dacs_3_composer.ui.shipper.profile.ShipperProfileScreen
-import com.example.dacs_3_composer.ui.shipper.profile.ShipperEditProfileScreen // 🎯 Nhớ Import màn hình này vào nhé!
+import com.example.dacs_3_composer.ui.shipper.profile.ShipperEditProfileScreen
 import com.example.dacs_3_composer.ui.shipper.profile.ShipperProfileViewModel
+import com.example.dacs_3_composer.ui.chat.MessageCenterScreen
+import com.example.dacs_3_composer.ui.chat.ChatDetailScreen
 
 @Composable
 fun MainRouteContainerShipper(
@@ -48,9 +50,11 @@ fun MainRouteContainerShipper(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // 🎯 CẬP NHẬT: Ẩn BottomBar khi ở màn hình chi tiết đơn hàng HOẶC màn hình sửa thông tin cá nhân
+    // 🎯 CẬP NHẬT: Ẩn BottomBar khi ở màn hình chi tiết đơn hàng, hồ sơ hoặc nhắn tin
     val shouldShowBottomBar = currentRoute?.startsWith("shipper_order_detail") != true
             && currentRoute != "shipper_edit_profile"
+            && currentRoute != "message_center"
+            && currentRoute?.startsWith("chat_detail") != true
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -112,6 +116,9 @@ fun MainRouteContainerShipper(
                 ShipperDashboardScreen(
                     onOrderClick = { id ->
                         navController.navigate("shipper_order_detail/$id")
+                    },
+                    onMessageClick = {
+                        navController.navigate("message_center")
                     }
                 )
             }
@@ -128,7 +135,6 @@ fun MainRouteContainerShipper(
 
             // Màn hình 3: Thông tin cá nhân Shipper
             composable(NavigationShipper.Account.route) {
-                // Tự động reload thông tin mới mỗi khi Shipper quay lại màn hình này
                 LaunchedEffect(Unit) {
                     profileViewModel.loadProfile()
                 }
@@ -136,11 +142,9 @@ fun MainRouteContainerShipper(
                 ShipperProfileScreen(
                     viewModel = profileViewModel,
                     onLogoutClick = {
-                        // 🎯 CẬP NHẬT: Kích hoạt callback truyền ngược về MainActivity
                         onLogout()
                     },
                     onNavigateToSection = { sectionKey ->
-                        // 🎯 CẬP NHẬT: Điều hướng qua Route mới khi chọn mục EDIT_PROFILE
                         if (sectionKey == "EDIT_PROFILE") {
                             navController.navigate("shipper_edit_profile")
                         }
@@ -148,7 +152,27 @@ fun MainRouteContainerShipper(
                 )
             }
 
-            // 🎯 THÊM MỚI: Màn hình chỉnh sửa thông tin cá nhân (Ẩn BottomBar)
+            // Màn hình Nhắn tin
+            composable("message_center") {
+                MessageCenterScreen(
+                    onConversationClick = { convId -> 
+                        navController.navigate("chat_detail/$convId") 
+                    },
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+
+            composable(
+                route = "chat_detail/{conversationId}",
+                arguments = listOf(navArgument("conversationId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val convId = backStackEntry.arguments?.getString("conversationId") ?: ""
+                ChatDetailScreen(
+                    conversationId = convId,
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+
             composable("shipper_edit_profile") {
                 ShipperEditProfileScreen(
                     viewModel = profileViewModel,
@@ -158,7 +182,6 @@ fun MainRouteContainerShipper(
                 )
             }
 
-            // Màn hình phụ: Chi tiết đơn hàng & Bản đồ dẫn đường (Ẩn BottomBar)
             composable(
                 route = "shipper_order_detail/{orderId}",
                 arguments = listOf(navArgument("orderId") { type = NavType.StringType })

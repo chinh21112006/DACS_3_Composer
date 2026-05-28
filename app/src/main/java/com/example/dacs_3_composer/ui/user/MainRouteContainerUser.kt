@@ -3,14 +3,17 @@ package com.example.dacs_3_composer.ui.user
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.dacs_3_composer.R
@@ -24,15 +27,27 @@ import com.example.dacs_3_composer.ui.user.search.SearchScreen
 import com.example.dacs_3_composer.ui.user.cart.CartViewModel
 import com.example.dacs_3_composer.ui.user.cart.CartScreen
 import com.example.dacs_3_composer.ui.user.notification.NotificationScreen
+import com.example.dacs_3_composer.ui.chat.MessageCenterScreen
+import com.example.dacs_3_composer.ui.chat.ChatDetailScreen
 
 @Composable
 fun MainRouteContainerUser(
     onLogout: () -> Unit = {}
 ) {
     val navController = rememberNavController()
-
-    // Khởi tạo bộ não giỏ hàng dùng chung ở cấp cha cao nhất
     val cartViewModel: CartViewModel = viewModel()
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    // Ẩn Bottom Bar khi ở các màn hình chi tiết hoặc chat
+    val shouldShowBottomBar = currentRoute !in listOf(
+        "message_center",
+        "chat_detail/{conversationId}",
+        "cart",
+        "order_tracking/{orderId}",
+        "manage_address"
+    ) && currentRoute?.startsWith("restaurant_detail") != true
 
     val sampleRestaurant = listOf(Restaurant(
         name = "The Coffee House",
@@ -45,39 +60,58 @@ fun MainRouteContainerUser(
     ))
 
     Scaffold(
-        bottomBar = { BottomBar(navController = navController) }
+        bottomBar = {
+            if (shouldShowBottomBar) {
+                BottomBar(navController = navController)
+            }
+        }
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             NavHost(navController = navController, startDestination = "home") {
-                // Trang chủ
-                // Bên trong NavHost của MainRouteContainerUser.kt
                 composable("home") {
                     HomeScreen(
                         navController = navController,
-                        // 🌟 Định nghĩa hành động khi bấm tìm kiếm: nhảy sang màn hình search kèm tham số
                         onNavigateToSearch = { query ->
                             navController.navigate("search/$query")
                         }
                     )
                 }
-                // 🌟 THÊM ROUTE NÀY VÀO ĐỂ HỨNG ĐIỀU HƯỚNG TỪ BOTTOMBAR MỚI
-                // Tìm đoạn này trong khối NavHost của MainRouteContainerUser.kt:
+                
                 composable("notification") {
-                    // 🚀 Thế màn hình thông báo thật chúng ta vừa làm vào đây
                     NotificationScreen()
                 }
+
+                composable("message_center") {
+                    MessageCenterScreen(
+                        onConversationClick = { convId -> 
+                            navController.navigate("chat_detail/$convId") 
+                        },
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+
+                composable(
+                    route = "chat_detail/{conversationId}",
+                    arguments = listOf(navArgument("conversationId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val convId = backStackEntry.arguments?.getString("conversationId") ?: ""
+                    ChatDetailScreen(
+                        conversationId = convId,
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+
                 composable(
                     route = "search/{query}"
                 ) { backStackEntry ->
                     val query = backStackEntry.arguments?.getString("query") ?: ""
                     SearchScreen(
                         searchQuery = query,
-                        navController = navController, // 🚀 Thêm dòng này vào
+                        navController = navController,
                         onBackClick = { navController.popBackStack() }
                     )
                 }
 
-                // 🌟 ĐÃ SỬA: Khi bấm nút "Theo dõi đơn", ta nhận mã id đơn hàng thật và truyền đi
                 composable("order") {
                     OrderScreen(
                         suggestedRestaurants = sampleRestaurant,
@@ -87,25 +121,20 @@ fun MainRouteContainerUser(
                     )
                 }
 
-                // 🌟 ĐÃ SỬA: Cấu hình tuyến đường nhận tham số mã đơn hàng động {orderId} từ màn hình Order bắn sang
                 composable(
                     route = "order_tracking/{orderId}",
                     arguments = listOf(navArgument("orderId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
-
                     OrderTrackingScreen(
-                        orderId = orderId, // 🚀 Bắn mã đơn hàng thật vào màn hình chi tiết để lấy dữ liệu từ Firebase
-                        onBackClick = {
-                            navController.popBackStack()
-                        }
+                        orderId = orderId,
+                        onBackClick = { navController.popBackStack() }
                     )
                 }
 
                 composable("profile") {
                     ProfileScreen(
                         onLogoutClick = onLogout,
-                        // 🚀 THÊM MỚI 2 SỰ KIỆN ĐIỀU HƯỚNG RA NGOÀI
                         onNavigateToOrderHistory = {
                             navController.navigate("order") {
                                 launchSingleTop = true
@@ -116,19 +145,17 @@ fun MainRouteContainerUser(
                         }
                     )
                 }
-                // 🌟 THÊM ROUTE CHO MÀN HÌNH ĐỊA CHỈ MỚI
+
                 composable("manage_address") {
                     com.example.dacs_3_composer.ui.user.profile.AddressScreen(
                         onBackClick = { navController.popBackStack() }
                     )
                 }
 
-                // Tuyến đường chi tiết quán ăn
                 composable(
                     route = "restaurant_detail/{restaurantId}"
                 ) { backStackEntry ->
                     val restaurantId = backStackEntry.arguments?.getString("restaurantId") ?: ""
-
                     RestaurantDetailScreen(
                         restaurantId = restaurantId,
                         cartViewModel = cartViewModel,
@@ -142,7 +169,6 @@ fun MainRouteContainerUser(
                     )
                 }
 
-                // Tuyến đường đến màn hình giỏ hàng
                 composable("cart") {
                     CartScreen(
                         cartViewModel = cartViewModel,

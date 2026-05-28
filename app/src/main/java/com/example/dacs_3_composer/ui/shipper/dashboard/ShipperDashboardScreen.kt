@@ -13,37 +13,35 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dacs_3_composer.ui.shipper.dashboard.components.*
-import com.example.dacs_3_composer.ui.shipper.profile.ShipperProfileViewModel // 🎯 IMPORT VIEWMODEL PROFILE
+import com.example.dacs_3_composer.ui.shipper.profile.ShipperProfileViewModel
 import com.google.firebase.firestore.FirebaseFirestore
 
 @Composable
 fun ShipperDashboardScreen(
     onOrderClick: (String) -> Unit,
+    onMessageClick: () -> Unit, // 🎯 THÊM THAM SỐ NÀY
     shipperViewModel: ShipperViewModel = viewModel(),
-    profileViewModel: ShipperProfileViewModel = viewModel() // 🎯 INJECT THÊM VIEWMODEL PROFILE
+    profileViewModel: ShipperProfileViewModel = viewModel()
 ) {
     val isReadyToWork by shipperViewModel.isReadyToWork.collectAsState()
     val availableOrders by shipperViewModel.availableOrders.collectAsState()
     val activeDeliveryOrder by shipperViewModel.activeDeliveryOrder.collectAsState()
-
-    // 🌟 LẤY DỮ LIỆU ĐỘNG TỰ ĐỘNG TÍNH TOÁN TỪ VIEWMODEL GỐC
     val todayIncome by shipperViewModel.todayIncomeStr.collectAsState()
     val completedCount by shipperViewModel.completedOrdersCountStr.collectAsState()
-
-    // 🎯 LẤY STATE USER THỰC TẾ ĐỂ HIỂN THỊ TÊN & AVATAR
     val user by profileViewModel.user.collectAsState()
 
     val firestore = FirebaseFirestore.getInstance()
 
-    // 🎯 TỰ ĐỘNG REFRESH THÔNG TIN TÀI XẾ MỖI KHI VÀO LẠI TAB TRANG CHỦ
     LaunchedEffect(Unit) {
         profileViewModel.loadProfile()
     }
 
     Scaffold(
         topBar = {
-            // 🎯 TRUYỀN USER THẬT VÀO TOPBAR
-            ShipperDashboardTopBar(user = user)
+            ShipperDashboardTopBar(
+                user = user,
+                onMessageClick = onMessageClick // 🎯 KÍCH HOẠT NÚT CHAT
+            )
         },
         containerColor = Color(0xFFF8F9FA)
     ) { innerPadding ->
@@ -57,7 +55,6 @@ fun ShipperDashboardScreen(
         ) {
             item { Spacer(modifier = Modifier.height(4.dp)) }
 
-            // 1. Thẻ bật/tắt nhận đơn tự động
             item {
                 WorkStatusToggleCard(
                     isReady = isReadyToWork,
@@ -65,23 +62,20 @@ fun ShipperDashboardScreen(
                 )
             }
 
-            // 2. Thẻ thu nhập thực tế
             item {
                 IncomeCard(
-                    todayIncome = todayIncome, // 🌟 Đã truyền dữ liệu thật động ở đây
+                    todayIncome = todayIncome,
                     growthText = "Thu nhập dựa trên đơn hoàn thành"
                 )
             }
 
-            // 3. Thống kê số đơn thực tế
             item {
                 StatsMiniCardRow(
-                    completedCount = completedCount, // 🌟 Truyền dữ liệu đếm đơn xuống row con
+                    completedCount = completedCount,
                     activeCount = if (activeDeliveryOrder != null) "1" else "0"
                 )
             }
 
-            // THẾ TRẬN 1: TÀI XẾ ĐANG CÓ ĐƠN HÀNG ĐANG GIAO / ĐANG ĐẾN LẤY
             if (activeDeliveryOrder != null) {
                 item {
                     Text(
@@ -103,9 +97,7 @@ fun ShipperDashboardScreen(
                         onCardClick = { onOrderClick(activeDeliveryOrder!!.id) }
                     )
                 }
-            }
-            // THẾ TRẬN 2: CHƯA NHẬN ĐƠN -> KIỂM TRA SWITCH BẬT/TẮT APP
-            else {
+            } else {
                 item {
                     Text(
                         text = "Đơn hàng phù hợp hiện có",
@@ -143,7 +135,6 @@ fun ShipperDashboardScreen(
                             )
                         }
                     }
-
                     item { HeatMapBanner() }
                 }
                 item { Spacer(modifier = Modifier.height(4.dp)) }

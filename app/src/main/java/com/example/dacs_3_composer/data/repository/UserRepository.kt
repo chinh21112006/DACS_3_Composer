@@ -21,8 +21,12 @@ class UserRepository {
 
     suspend fun getCurrentUser(): User {
         val uid = auth.currentUser?.uid ?: throw Exception("Chưa đăng nhập")
+        return getUserById(uid)
+    }
+
+    suspend fun getUserById(uid: String): User {
         val snapshot = db.collection("users").document(uid).get().await()
-        val user = snapshot.toObject(User::class.java) ?: throw Exception("Không tìm thấy dữ liệu tài khoản")
+        val user = snapshot.toObject(User::class.java) ?: throw Exception("Không tìm thấy người dùng")
         return user.copy(uid = uid)
     }
 

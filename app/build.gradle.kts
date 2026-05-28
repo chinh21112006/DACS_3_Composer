@@ -40,11 +40,11 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.13.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-messaging") // Added for FCM
+    
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
-    // Thư viện Cloudinary Android SDK chính thức
     implementation("com.cloudinary:cloudinary-android:3.0.2")
-    // Thư viện Coil hỗ trợ hiển thị ảnh từ URL mạng lên Jetpack Compose
     implementation("io.coil-kt:coil-compose:2.6.0")
     
     implementation(libs.androidx.core.ktx)

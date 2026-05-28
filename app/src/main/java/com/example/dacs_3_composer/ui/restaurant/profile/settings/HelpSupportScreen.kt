@@ -35,7 +35,8 @@ import coil.request.ImageRequest
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HelpSupportScreen(
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onChatSupportClick: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -193,7 +194,7 @@ fun HelpSupportScreen(
                             modifier = Modifier.weight(1f),
                             icon = Icons.AutoMirrored.Filled.Chat,
                             label = "Chat trực tiếp",
-                            onClick = { /* Chat logic */ }
+                            onClick = onChatSupportClick
                         )
                     }
                 }
