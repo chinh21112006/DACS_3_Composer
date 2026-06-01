@@ -16,8 +16,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.dacs_3_composer.R
 
-    data class Category(val name: String, val imageRes: Int)
- @Composable
+data class Category(val name: String, val imageRes: Int)
+@Composable
 fun CategorySectionn() {
     val categories = listOf(
         Category("Phở", R.drawable.food_pho),

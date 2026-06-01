@@ -25,11 +25,12 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     onNavigateToSearch: (String) -> Unit,
     homeViewModel: HomeViewModel = viewModel(),
-    cartViewModel: CartViewModel = viewModel()
+    cartViewModel: CartViewModel = viewModel() // 🌟 TÍCH HỢP: Gọi chung một instance CartViewModel
 ) {
     val restaurants by homeViewModel.restaurantsList.collectAsState()
     val isLoading by homeViewModel.isLoading.collectAsState()
 
+    // Gọi lại hàm làm mới dữ liệu người dùng mỗi khi màn hình hiển thị
     LaunchedEffect(Unit) {
         homeViewModel.loadUserData()
     }
@@ -51,14 +52,6 @@ fun HomeScreen(
                     userImageUrl = homeViewModel.userImageUrl,
                     onSearchAction = { query ->
                         onNavigateToSearch(query)
-                    },
-                    // 🎯 KÍCH HOẠT NÚT TIN NHẮN CHO USER
-                    onMessageClick = {
-                        navController.navigate("message_center")
-                    },
-                    // 🎯 KÍCH HOẠT NÚT THÔNG BÁO CHO USER
-                    onNotificationClick = {
-                        navController.navigate("notification")
                     }
                 )
             }
@@ -67,6 +60,7 @@ fun HomeScreen(
             item { CategorySectionn() }
 
             item {
+                // 🌟 TRUYỀN BIẾN: Đẩy tiếp CartViewModel xuống tầng dưới cho mục món ăn ngon
                 DeliciousDishSection(navController = navController, cartViewModel = cartViewModel)
             }
 
@@ -82,8 +76,10 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
+                            // 🎯 ĐỒNG BỘ DỮ LIỆU: Nạp ngay thông tin định danh của Quán ăn vào giỏ hàng trước khi chuyển màn
                             cartViewModel.currentRestaurantId = restaurant.id
                             cartViewModel.currentRestaurantName = restaurant.name
+
                             navController.navigate("restaurant_detail/${restaurant.id}")
                         }
                 ) {

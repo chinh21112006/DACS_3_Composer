@@ -24,7 +24,7 @@ data class Order(
 
     // Cấu trúc tiền chuẩn giống hệt Firebase Console
     var totalDishPrice: Double = 0.0,    // Giá gốc tổng các món ăn
-    var shippingFee: Double = 20000.0,   // 🌟 BỔ SUNG: Tiền ship cố định 20k cho mỗi đơn hàng
+    var shippingFee: Double = 20000.0,   // Tiền ship cố định 20k cho mỗi đơn hàng
     var totalPrice: Double = 0.0,        // Số tiền cuối cùng Khách trả = totalDishPrice + shippingFee
 
     // 2. Thông tin của KHÁCH HÀNG (Người mua)
@@ -33,9 +33,17 @@ data class Order(
     var customerPhone: String = "",
     var customerAddress: String = "",
 
+    // 🌟 BỔ SUNG TOẠ ĐỘ KHÁCH HÀNG
+    var customerLat: Double? = null,
+    var customerLng: Double? = null,
+
     // 3. Thông tin của NHÀ HÀNG (Người bán)
     var restaurantId: String = "",
     var restaurantName: String = "",
+
+    // 🌟 BỔ SUNG TOẠ ĐỘ NHÀ HÀNG
+    var restaurantLat: Double? = null,
+    var restaurantLng: Double? = null,
 
     // 4. Thông tin của SHIPPER (Người giao)
     var shipperId: String = "",
@@ -46,9 +54,11 @@ data class Order(
     // Constructor không tham số bắt buộc để Firebase Firestore ánh xạ (mapping) tự động
     constructor() : this(
         id = "", time = "", status = "PENDING",
-        totalDishPrice = 0.0, shippingFee = 20000.0, totalPrice = 0.0, // 🌟 Cập nhật tại đây
+        totalDishPrice = 0.0, shippingFee = 20000.0, totalPrice = 0.0,
         userId = "", customerName = "", customerPhone = "", customerAddress = "",
+        customerLat = null, customerLng = null, // 🌟 Khởi tạo mặc định null
         restaurantId = "", restaurantName = "",
+        restaurantLat = null, restaurantLng = null, // 🌟 Khởi tạo mặc định null
         shipperId = "", items = emptyList()
     )
 }

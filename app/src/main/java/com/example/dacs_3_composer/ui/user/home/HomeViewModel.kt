@@ -106,27 +106,33 @@ class HomeViewModel : ViewModel() {
                 val list = mutableListOf<RestaurantDetail>()
                 for (document in result) {
                     try {
-                        // Lấy dữ liệu thủ công để tránh xung đột kiểu dữ liệu Double/Long
+                        // 1. Lấy an toàn trường rating, chấp nhận mọi kiểu dữ liệu Number trên Firestore
+                        val ratingValue = when (val r = document.get("rating")) {
+                            is Number -> r.toDouble()
+                            else -> 0.0
+                        }
+
+                        // 2. Tạo đối tượng RestaurantDetail với các giá trị bọc phòng hờ dữ liệu null
                         val restaurant = RestaurantDetail(
                             id = document.id,
-                            name = document.getString("name") ?: "",
-                            rating = document.getDouble("rating") ?: document.getLong("rating")?.toDouble() ?: 0.0,
-                            address = document.getString("address") ?: "",
-                            deliveryTime = document.getString("deliveryTime") ?: "0 min",
-                            distance = document.getString("distance") ?: "0 km",
-                            description = document.getString("description") ?: "",
+                            name = document.getString("name") ?: "Quán ăn chưa đặt tên",
+                            rating = ratingValue,
+                            address = document.getString("address") ?: "Chưa cập nhật địa chỉ",
+                            deliveryTime = document.getString("deliveryTime") ?: "15-20 min",
+                            distance = document.getString("distance") ?: "0.0 km",
+                            description = document.getString("description") ?: "Chưa có mô tả ngắn",
                             coverImage = document.getString("coverImage") ?: ""
                         )
                         list.add(restaurant)
                     } catch (e: Exception) {
-                        Log.e("HomeViewModel", "Lỗi convert nhà hàng ID ${document.id}: ", e)
+                        Log.e("HomeViewModel", "Lỗi convert nhà hàng ID ${document.id}: ${e.message}", e)
                     }
                 }
                 _restaurantsList.value = list
                 _isLoading.value = false
             }
             .addOnFailureListener { exception ->
-                Log.e("HomeViewModel", "Lỗi lấy danh sách quán: ", exception)
+                Log.e("HomeViewModel", "Lỗi lấy danh sách quán từ Firestore: ", exception)
                 _isLoading.value = false
             }
     }

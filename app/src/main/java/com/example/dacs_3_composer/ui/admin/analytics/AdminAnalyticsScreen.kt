@@ -14,21 +14,13 @@ import com.example.dacs_3_composer.ui.admin.analytics.components.*
 
 @Composable
 fun AdminAnalyticsScreen(
-    onChatClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {},
     viewModel: AdminAnalyticsViewModel = viewModel()
 ) {
-    val adminInfo by viewModel.adminInfo.collectAsState()
+    // Thu thập dữ liệu realtime tự động đẩy về từ Firestore backend
+    val analyticsData by viewModel.analyticsState.collectAsState()
 
     Scaffold(
-        topBar = { 
-            AnalyticsTopBar(
-                name = adminInfo?.name ?: "Admin",
-                avatarUrl = adminInfo?.avatarUrl ?: "",
-                onChatClick = onChatClick,
-                onAvatarClick = onProfileClick
-            ) 
-        },
+        topBar = { AnalyticsTopBar() },
         containerColor = Color(0xFFF8F9FA)
     ) { innerPadding ->
         LazyColumn(
@@ -41,16 +33,17 @@ fun AdminAnalyticsScreen(
         ) {
             item { Spacer(modifier = Modifier.height(4.dp)) }
 
-            // 1. Ô lưới 4 chỉ số thống kê
-            item { OverviewStatsGrid() }
+            // 1. Đổ dữ liệu thật vào các ô lưới thống kê (Người dùng, Nhà hàng, Shipper, Đơn hàng...)
+            item {
+                OverviewStatsGrid(data = analyticsData)
+            }
 
-            // 2. Thẻ biểu đồ doanh thu Tuần / Tháng
-            item { RevenueChartCard() }
+            // 2. Đổ dữ liệu mảng doanh thu thực tính toán từ Firebase lên biểu đồ cột
+            item {
+                RevenueChartCard(revenueDays = analyticsData.weeklyRevenue)
+            }
 
-            // 3. Tab danh mục xếp hạng (Nhà hàng, Món ăn, Shipper)
-            item { TopRankingSection() }
-
-            // 4. Khối gợi ý vận hành thông minh dưới đáy
+            // 3. Khối thông tin gợi ý chuyên sâu dưới đáy
             item { DeepInsightCard() }
         }
     }
