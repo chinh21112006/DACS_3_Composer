@@ -30,6 +30,10 @@ class CartViewModel : ViewModel() {
         customerName: String,
         customerPhone: String,
         customerAddress: String,
+        // 🌟 THÊM 2 THAM SỐ TOẠ ĐỘ VÀO HÀM:
+        customerLat: Double,
+        customerLng: Double,
+
         restaurantId: String,
         restaurantName: String,
         shippingFee: Double,
@@ -49,8 +53,6 @@ class CartViewModel : ViewModel() {
             return
         }
 
-        // 🎯 ĐÃ SỬA: Lấy ID nhà hàng an toàn nhất. Nếu tham số truyền vào từ View bị rỗng,
-        // thì lấy thẳng từ biến currentRestaurantId đang lưu trong ViewModel, nếu vẫn rỗng thì lấy từ món ăn đầu tiên.
         val finalRestaurantId = if (restaurantId.isNotBlank() && restaurantId != "RES_DEFAULT") {
             restaurantId
         } else if (this.currentRestaurantId.isNotBlank()) {
@@ -59,7 +61,6 @@ class CartViewModel : ViewModel() {
             cartItems.firstOrNull()?.dish?.restaurantId ?: ""
         }
 
-        // Nếu cố gắng tìm mọi cách mà vẫn rỗng, báo lỗi ngay không cho đẩy lên Firestore để tránh lỗi dữ liệu
         if (finalRestaurantId.isBlank()) {
             Log.e("CartViewModel", "Đặt hàng thất bại: Không tìm thấy ID nhà hàng từ giỏ hàng!")
             onFailure("Lỗi hệ thống: Không xác định được ID nhà hàng!")
@@ -80,6 +81,7 @@ class CartViewModel : ViewModel() {
 
         val currentTime = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
 
+        // 🌟 KHỞI TẠO OBJECT ORDER THEO KHUÔN MỚI CỦA BẠN:
         val newOrder = Order(
             id = orderId,
             time = currentTime,
@@ -93,9 +95,16 @@ class CartViewModel : ViewModel() {
             customerPhone = customerPhone,
             customerAddress = customerAddress,
 
-            // Gán ID nhà hàng đã được bóc tách an toàn ở trên
+            // 🌟 GÁN GIÁ TRỊ TOẠ ĐỘ THỰC TẾ VÀO ĐÂY:
+            customerLat = customerLat,
+            customerLng = customerLng,
+
             restaurantId = finalRestaurantId,
             restaurantName = restaurantName.ifBlank { this.currentRestaurantName }.ifBlank { "Nhà hàng đối tác" },
+
+            // Tạm thời để null vì chưa xử lý phần map nhà hàng, đúng như thiết kế file Model của bạn
+            restaurantLat = null,
+            restaurantLng = null,
 
             shipperId = "",
             items = orderItemsList
@@ -133,27 +142,42 @@ class CartViewModel : ViewModel() {
     }
 
 
-    fun updateDeliveryInfo(newName: String, newPhone: String, newAddress: String) {
+    fun updateDeliveryInfo(
+        newName: String,
+        newPhone: String,
+        newAddress: String,
+        newAddressDetail: String,
+        lat: Double,
+        lng: Double
+    ) {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
         val db = FirebaseFirestore.getInstance()
 
+        // Cập nhật các trường thông tin mặc định gốc của user
         val updates = mapOf(
             "name" to newName,
             "phone" to newPhone,
-            "address" to newAddress
+            "address" to newAddress,
+            "addressDetail" to newAddressDetail,
+            "latitude" to lat,
+            "longitude" to lng
         )
 
         db.collection("users").document(uid).update(updates)
             .addOnSuccessListener {
+                // Thêm một object cấu trúc đầy đủ vào mảng lịch sử địa chỉ đã lưu
                 val addressMap = mapOf(
                     "name" to newName,
                     "phone" to newPhone,
-                    "address" to newAddress
+                    "address" to newAddress,
+                    "addressDetail" to newAddressDetail,
+                    "latitude" to lat,
+                    "longitude" to lng
                 )
                 db.collection("users").document(uid)
                     .update("savedAddresses", FieldValue.arrayUnion(addressMap))
                     .addOnSuccessListener {
-                        Log.d("CartViewModel", "Đã cập nhật mảng savedAddresses thành công")
+                        Log.d("CartViewModel", "Đã cập nhật mảng savedAddresses cấu trúc mới thành công")
                     }
             }
             .addOnFailureListener { e ->

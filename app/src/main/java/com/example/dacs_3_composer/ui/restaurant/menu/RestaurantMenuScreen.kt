@@ -97,7 +97,15 @@ fun RestaurantMenuScreen(
                     if (editingDish == null) {
                         viewModel.addDish(name, price, cat, desc, uri)
                     } else {
-                        viewModel.updateDish(editingDish!!.copy(name = name, price = price, category = cat, description = desc), uri)
+                        // ✅ ĐÃ SỬA: Bảo toàn nguyên vẹn ID gốc của món ăn để Firebase nhận diện đúng tài liệu cần sửa
+                        val updatedWithId = editingDish!!.copy(
+                            id = editingDish!!.id, // Ép giữ nguyên ID tài liệu Firestore
+                            name = name,
+                            price = price,
+                            category = cat,
+                            description = desc
+                        )
+                        viewModel.updateDish(updatedWithId, uri)
                     }
                     showAddDialog = false
                 }

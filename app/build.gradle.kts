@@ -37,16 +37,28 @@ android {
 }
 
 dependencies {
+    dependencies {
+//        Thư viện cấp vị trí (Location)
+        implementation("com.google.accompanist:accompanist-permissions:0.34.0")
+        // Thư viện bản đồ OpenStreetMap miễn phí
+        implementation("org.osmdroid:osmdroid-android:6.1.20")
+
+        // Firebase Realtime Database để đồng bộ vị trí real-time
+        implementation("com.google.firebase:firebase-database-ktx:21.0.0")
+
+        // Thư viện Play Services Location để lấy GPS (nếu chưa có)
+        implementation("com.google.android.gms:play-services-location:21.2.0")
+    }
     implementation(platform("com.google.firebase:firebase-bom:33.13.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
-    implementation("com.google.firebase:firebase-messaging") // Added for FCM
-    
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
+    // Thư viện Cloudinary Android SDK chính thức
     implementation("com.cloudinary:cloudinary-android:3.0.2")
+    // Thư viện Coil hỗ trợ hiển thị ảnh từ URL mạng lên Jetpack Compose
     implementation("io.coil-kt:coil-compose:2.6.0")
-    
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -56,16 +68,16 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.ui)
-    
+
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.cloudinary.android)
     implementation(libs.coil.compose)
-    
+
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
-    
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

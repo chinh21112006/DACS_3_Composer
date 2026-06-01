@@ -1,8 +1,12 @@
 package com.example.dacs_3_composer.data.model
 
 data class UserAddress(
-    val id: String = java.util.UUID.randomUUID().toString(), // Tạo ID ngẫu nhiên để Jetpack Compose nhận diện key
     val name: String = "",
     val phone: String = "",
-    val address: String = "" // Đổi từ detailAddress sang address cho khớp Firebase của bạn
+    val address: String = "",          // Chữ hiển thị cho người dùng đọc (ví dụ: 93 Nguyễn Đình Chiểu)
+    val addressDetail: String = "",    // Thông tin bổ sung (Cổng, số tầng, ghi chú giao hàng)
+    val latitude: Double = 16.0748,    // Số định vị Vĩ độ (Dành cho Map Shipper)
+    val longitude: Double = 108.2240   // Số định vị Kinh độ (Dành cho Map Shipper)
 )
+
+//Địa chỉ Customer

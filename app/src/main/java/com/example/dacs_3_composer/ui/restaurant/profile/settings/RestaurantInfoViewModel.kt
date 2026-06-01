@@ -76,8 +76,10 @@ class RestaurantInfoViewModel : ViewModel() {
     fun updateRestaurantInfo(
         name: String,
         email: String,
-        phone: String,
+        phone: String,       // 🌟 Đã khớp với biến 'phone' của bạn
         address: String,
+        latitude: Double,    // 🌟 Nhận tọa độ số từ Map kéo thả
+        longitude: Double,   // 🌟 Nhận tọa độ số từ Map kéo thả
         openTime: String,
         closeTime: String,
         description: String,
@@ -91,7 +93,7 @@ class RestaurantInfoViewModel : ViewModel() {
             try {
                 var finalAvatarUrl = restaurantDetail?.avatarUrl ?: ""
                 var finalCoverUrl = restaurantDetail?.coverImage ?: ""
-                
+
                 if (avatarUri != null) {
                     val uploadedAvatar = repository.uploadImage(avatarUri, "ml_default")
                     if (uploadedAvatar.isNotBlank()) {
@@ -107,11 +109,14 @@ class RestaurantInfoViewModel : ViewModel() {
                     }
                 }
 
+                // 🌟 Các key trong Map này phải trùng khớp 100% với thuộc tính trong Model của bạn
                 val updates = mutableMapOf<String, Any>(
                     "name" to name,
                     "email" to email,
-                    "phone" to phone,
+                    "phone" to phone, // 🌟 Khớp với trường 'phone' trong database của bạn
                     "address" to address,
+                    "latitude" to latitude,
+                    "longitude" to longitude,
                     "openTime" to openTime,
                     "closeTime" to closeTime,
                     "description" to description,
@@ -120,14 +125,16 @@ class RestaurantInfoViewModel : ViewModel() {
                 )
 
                 firestore.collection("restaurants").document(restaurantId).update(updates).await()
-                firestore.collection("users").document(restaurantId).update("name", name).await()
 
-                // 🎯 LOG ACTIVITY
+                // Đồng bộ sang collection users
+                val userUpdates = mapOf("name" to name, "address" to address)
+                firestore.collection("users").document(restaurantId).update(userUpdates).await()
+
                 activityLogRepository.logActivity(
                     restaurantId = restaurantId,
                     type = "profile",
                     title = "Chỉnh sửa hồ sơ",
-                    description = "Cập nhật thông tin chi tiết nhà hàng và hình ảnh"
+                    description = "Cập nhật vị trí định vị và thông tin liên hệ của quán"
                 )
 
                 saveSuccess = true

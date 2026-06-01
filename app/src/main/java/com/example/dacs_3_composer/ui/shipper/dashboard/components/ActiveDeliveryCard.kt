@@ -16,7 +16,7 @@ import com.example.dacs_3_composer.data.model.Order
 @Composable
 fun ActiveDeliveryDetailCard(
     order: Order,
-    onUpdateStatusClick: (String) -> Unit, // ✅ ĐỔI: Nhận lambda truyền String trạng thái mục tiêu lên Firebase
+    onUpdateStatusClick: (String) -> Unit, // ✅ Nhận lambda truyền String trạng thái mục tiêu lên Firebase
     onCardClick: () -> Unit
 ) {
     Card(
@@ -44,9 +44,18 @@ fun ActiveDeliveryDetailCard(
             Text(text = "🏢 Cửa hàng: ${order.restaurantName}", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             Text(text = "👤 Khách hàng: ${order.customerName} (${order.customerPhone})", fontSize = 13.sp)
             Text(text = "📍 Địa chỉ nhận: ${order.customerAddress}", fontSize = 13.sp, color = Color.Gray)
+
+            // 🌟 CHÈN BẢN ĐỒ VÀO ĐÂY: Hiển thị ngay bên trong thông tin đơn hàng
+            Spacer(modifier = Modifier.height(12.dp))
+            ShipperMapView(
+                order = order,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(500.dp) // Chiều cao vừa vặn cho UI của thẻ
+            )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ✅ ĐÃ SỬA: Tách biệt nút bấm phân tầng dựa vào trạng thái thực tế của đơn hàng
+            // Tách biệt nút bấm phân tầng dựa vào trạng thái thực tế của đơn hàng
             if (order.status == "ACCEPTED") {
                 // Bước 1: Tài xế đã nhận đơn, đang đi đến quán lấy món
                 Button(
@@ -60,7 +69,7 @@ fun ActiveDeliveryDetailCard(
             } else {
                 // Bước 2: Tài xế đã lấy đồ ăn xong và đang trên đường đi ship cho khách
                 Button(
-                    onClick = { onUpdateStatusClick("COMPLETED") }, // Kích hoạt nấc Hoàn thành đơn hàng
+                    onClick = { onUpdateStatusClick("COMPLETED") }, // Kích hoạt nấc Giao xong
                     modifier = Modifier.fillMaxWidth().height(46.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2ECC71)), // Màu xanh lá giao xong
                     shape = RoundedCornerShape(23.dp)

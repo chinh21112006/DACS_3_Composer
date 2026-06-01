@@ -117,9 +117,9 @@ fun MainRouteContainerShipper(
                     onOrderClick = { id ->
                         navController.navigate("shipper_order_detail/$id")
                     },
-                    onMessageClick = {
-                        navController.navigate("message_center")
-                    }
+//                    onMessageClick = {
+//                        navController.navigate("message_center")
+//                    }
                 )
             }
 

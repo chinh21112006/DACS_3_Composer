@@ -29,7 +29,6 @@ class AddressViewModel : ViewModel() {
         loadAddresses()
     }
 
-    // 🔄 TẢI MẢNG savedAddresses TỪ TRONG DOCUMENT USER
     fun loadAddresses() {
         if (userId == "guest_user") return
         isLoading = true
@@ -43,14 +42,16 @@ class AddressViewModel : ViewModel() {
                 }
 
                 if (snapshot != null && snapshot.exists()) {
-                    // Lấy mảng savedAddresses ra dưới dạng List các Map
                     val rawAddresses = snapshot.get("savedAddresses") as? List<Map<String, Any>>
                     if (rawAddresses != null) {
                         val parsedList = rawAddresses.map { map ->
                             UserAddress(
                                 name = map["name"] as? String ?: "",
                                 phone = map["phone"] as? String ?: "",
-                                address = map["address"] as? String ?: ""
+                                address = map["address"] as? String ?: "",
+                                addressDetail = map["addressDetail"] as? String ?: "",
+                                latitude = (map["latitude"] as? Number)?.toDouble() ?: 16.0748,
+                                longitude = (map["longitude"] as? Number)?.toDouble() ?: 108.2240
                             )
                         }
                         _addressList.value = parsedList
@@ -61,44 +62,27 @@ class AddressViewModel : ViewModel() {
             }
     }
 
-    // ➕ THÊM ĐỊA CHỈ MỚI VÀO MẢNG
     fun addAddress(newAddress: UserAddress, onComplete: () -> Unit) {
         val userDocRef = firestore.collection("users").document(userId)
+        val addressMap = mapAddressToMap(newAddress)
 
-        // Chuyển Object thành Map đúng định dạng Firebase mong muốn
-        val addressMap = mapOf(
-            "name" to newAddress.name,
-            "phone" to newAddress.phone,
-            "address" to newAddress.address
-        )
-
-        // Sử dụng arrayUnion để đẩy thêm 1 Map vào mảng savedAddresses có sẵn
         userDocRef.update("savedAddresses", FieldValue.arrayUnion(addressMap))
             .addOnSuccessListener { onComplete() }
-            .addOnFailureListener { e -> Log.e("AddressViewModel", "Lỗi thêm địa chỉ vào mảng", e) }
+            .addOnFailureListener { e -> Log.e("AddressViewModel", "Lỗi thêm địa chỉ", e) }
     }
 
-    // ❌ XÓA ĐỊA CHỈ KHỎI MẢNG
     fun deleteAddress(addressToDelete: UserAddress) {
         val userDocRef = firestore.collection("users").document(userId)
+        val addressMap = mapAddressToMap(addressToDelete)
 
-        val addressMap = mapOf(
-            "name" to addressToDelete.name,
-            "phone" to addressToDelete.phone,
-            "address" to addressToDelete.address
-        )
-
-        // Sử dụng arrayRemove để tìm đúng Map này trong mảng và xóa nó đi
         userDocRef.update("savedAddresses", FieldValue.arrayRemove(addressMap))
-            .addOnFailureListener { e -> Log.e("AddressViewModel", "Lỗi xóa địa chỉ khỏi mảng", e) }
+            .addOnFailureListener { e -> Log.e("AddressViewModel", "Lỗi xóa địa chỉ", e) }
     }
 
-    // ✏️ SỬA ĐỊA CHỈ (Trong mảng Firestore: Cách tốt nhất là xóa Map cũ đi và nạp Map mới vào)
     fun updateAddress(oldAddress: UserAddress, newAddress: UserAddress, onComplete: () -> Unit) {
         val userDocRef = firestore.collection("users").document(userId)
-
-        val oldMap = mapOf("name" to oldAddress.name, "phone" to oldAddress.phone, "address" to oldAddress.address)
-        val newMap = mapOf("name" to newAddress.name, "phone" to newAddress.phone, "address" to newAddress.address)
+        val oldMap = mapAddressToMap(oldAddress)
+        val newMap = mapAddressToMap(newAddress)
 
         firestore.runTransaction { transaction ->
             transaction.update(userDocRef, "savedAddresses", FieldValue.arrayRemove(oldMap))
@@ -106,7 +90,18 @@ class AddressViewModel : ViewModel() {
         }.addOnSuccessListener {
             onComplete()
         }.addOnFailureListener { e ->
-            Log.e("AddressViewModel", "Lỗi cập nhật phần tử mảng", e)
+            Log.e("AddressViewModel", "Lỗi cập nhật địa chỉ", e)
         }
+    }
+
+    private fun mapAddressToMap(address: UserAddress): Map<String, Any> {
+        return mapOf(
+            "name" to address.name,
+            "phone" to address.phone,
+            "address" to address.address,
+            "addressDetail" to address.addressDetail,
+            "latitude" to address.latitude,
+            "longitude" to address.longitude
+        )
     }
 }
