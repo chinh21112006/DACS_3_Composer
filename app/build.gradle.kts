@@ -38,6 +38,13 @@ android {
 
 dependencies {
     dependencies {
+        implementation("com.google.maps.android:maps-compose:4.3.3")
+// Google Play Services Maps Core
+        implementation("com.google.android.gms:play-services-maps:18.2.0")
+// Thư viện tiện ích giải mã Polyline (Lần này dùng vô tư vì đã có Google Maps)
+        implementation("com.google.maps.android:android-maps-utils:3.4.0")
+// Thư viện mạng OkHttp
+        implementation("com.squareup.okhttp3:okhttp:4.12.0")
 //        Thư viện cấp vị trí (Location)
         implementation("com.google.accompanist:accompanist-permissions:0.34.0")
         // Thư viện bản đồ OpenStreetMap miễn phí
