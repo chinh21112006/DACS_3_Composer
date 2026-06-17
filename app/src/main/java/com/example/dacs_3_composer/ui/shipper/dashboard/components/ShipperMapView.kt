@@ -5,16 +5,13 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.view.MotionEvent
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -22,6 +19,13 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dacs_3_composer.data.model.Order
 import com.example.dacs_3_composer.ui.shipper.dashboard.ShipperViewModel
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.Priority
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
@@ -42,6 +46,61 @@ private fun Context.findActivity(): Activity? {
     return null
 }
 
+/**
+ * Helper function: Calculates Euclidean distance between two GeoPoints
+ */
+private fun distanceBetween(p1: GeoPoint, p2: GeoPoint): Double {
+    return Math.sqrt(Math.pow(p1.latitude - p2.latitude, 2.0) + Math.pow(p1.longitude - p2.longitude, 2.0))
+}
+
+/**
+ * ✅ Logic Snap-to-Road:
+ * Finds the closest point on the line segment (roadPolyline) to the raw GPS point (rawPoint).
+ * This function calculates the perpendicular projection to the line segment.
+ */
+private fun findClosestPointOnRoute(rawPoint: GeoPoint, routePoints: List<GeoPoint>): GeoPoint {
+    if (routePoints.isEmpty()) return rawPoint
+    if (routePoints.size == 1) return routePoints[0]
+
+    var minDistance = Double.MAX_VALUE
+    var closestPoint = routePoints[0]
+
+    // Iterate through each road segment formed by two points [i] and [i+1]
+    for (i in 0 until routePoints.size - 1) {
+        val p1 = routePoints[i]
+        val p2 = routePoints[i + 1]
+
+        val latPoint = rawPoint.latitude
+        val lngPoint = rawPoint.longitude
+        val lat1 = p1.latitude
+        val lng1 = p1.longitude
+        val lat2 = p2.latitude
+        val lng2 = p2.longitude
+
+        val dx = lat2 - lat1
+        val dy = lng2 - lng1
+
+        if (dx == 0.0 && dy == 0.0) continue // Two duplicate points on the road
+
+        // Formula for perpendicular projection point onto segment p1-p2
+        val u = ((latPoint - lat1) * dx + (lngPoint - lng1) * dy) / (dx * dx + dy * dy)
+
+        val projectedPoint = when {
+            u < 0.0 -> p1         // Projected before segment
+            u > 1.0 -> p2         // Projected after segment
+            else -> GeoPoint(lat1 + u * dx, lng1 + u * dy) // Perpendicular projected point on segment
+        }
+
+        val distance = distanceBetween(rawPoint, projectedPoint)
+        if (distance < minDistance) {
+            minDistance = distance
+            closestPoint = projectedPoint
+        }
+    }
+    return closestPoint
+}
+
+@OptIn(ExperimentalPermissionsApi::class)
 @SuppressLint("MissingPermission", "ClickableViewAccessibility")
 @Composable
 fun ShipperMapView(
@@ -50,179 +109,187 @@ fun ShipperMapView(
     shipperViewModel: ShipperViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    val deviceLocation by shipperViewModel.currentShipperLocation.collectAsState()
-    val mapContext = remember(context) { context.findActivity() ?: context }
+    val locationPermissionState = rememberPermissionState(android.Manifest.permission.ACCESS_FINE_LOCATION)
 
-    // Khởi tạo cấu hình OSMDroid một lần duy nhất
-    LaunchedEffect(context) {
-        try {
-            Configuration.getInstance().load(
-                context,
-                context.getSharedPreferences("osm_prefs", Context.MODE_PRIVATE)
-            )
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    // Biến trạng thái lưu tọa độ thực tế của Shipper lấy từ Firebase
-    var firebaseShipperPoint by remember { mutableStateOf<GeoPoint?>(null) }
-
-    val trackingRef = remember(order.id) {
-        Firebase.database.getReference("tracking").child(order.id)
-    }
-
-    // 🌟 GIẢI PHÁP: Lắng nghe Firebase bằng các hiệu ứng vòng đời chuẩn của Compose (Lớp kiến trúc dữ liệu riêng biệt)
-    DisposableEffect(order.id) {
-        var listener: ValueEventListener? = null
-
-        if (order.id.isNotBlank() && order.id != "HEATING_MAP_PREVIEW") {
-            listener = object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    try {
-                        val lat = (snapshot.child("lat").value as? Number)?.toDouble() ?: return
-                        val lng = (snapshot.child("lng").value as? Number)?.toDouble() ?: return
-                        firebaseShipperPoint = GeoPoint(lat, lng)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
-                override fun onCancelled(error: DatabaseError) {}
+    val gpsSettingLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            if (order.id.isNotBlank() && order.id != "HEATING_MAP_PREVIEW") {
+                shipperViewModel.startLocationUpdates(context, order.id)
             }
-            trackingRef.addValueEventListener(listener)
-        }
-
-        onDispose {
-            listener?.let { trackingRef.removeEventListener(it) }
         }
     }
 
-    AndroidView(
-        modifier = modifier,
-        factory = { ctx ->
-            val actualCtx = ctx.findActivity() ?: ctx
-            MapView(actualCtx).apply {
+    LaunchedEffect(Unit) {
+        if (!locationPermissionState.status.isGranted) {
+            locationPermissionState.launchPermissionRequest()
+        }
+        Configuration.getInstance().userAgentValue = context.packageName
+    }
+
+    fun checkAndRequestGPS() {
+        val locationRequest = com.google.android.gms.location.LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 4000).build()
+        val builder = LocationSettingsRequest.Builder().addLocationRequest(locationRequest)
+        val client = LocationServices.getSettingsClient(context)
+        client.checkLocationSettings(builder.build()).addOnSuccessListener {
+            if (order.id.isNotBlank() && order.id != "HEATING_MAP_PREVIEW") {
+                shipperViewModel.startLocationUpdates(context, order.id)
+            }
+        }.addOnFailureListener { exception ->
+            if (exception is ResolvableApiException) {
                 try {
-                    setMultiTouchControls(true)
-                    setBuiltInZoomControls(false)
-                    controller.setZoom(16.0)
-
-                    setOnTouchListener { view, event ->
-                        when (event.action) {
-                            MotionEvent.ACTION_DOWN -> view.parent.requestDisallowInterceptTouchEvent(true)
-                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> view.parent.requestDisallowInterceptTouchEvent(false)
-                        }
-                        false
-                    }
-
-                    // 🌟 KHỞI TẠO CÁC OVERLAYS TẠI ĐÂY: Truyền trực tiếp `this` (MapView thực tế) thay vì `null`
-                    val destinationMarker = Marker(this).apply {
-                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                        id = "destination"
-                    }
-                    val shipperMarker = Marker(this).apply {
-                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                        title = "Vị trí của bạn"
-                        id = "shipper"
-                        try {
-                            icon = actualCtx.resources.getDrawable(org.osmdroid.library.R.drawable.person, null).apply {
-                                setTint(android.graphics.Color.parseColor("#2563EB"))
-                            }
-                        } catch (e: Exception) { e.printStackTrace() }
-                    }
-                    val routePolyline = Polyline(this).apply {
-                        id = "route"
-                        color = android.graphics.Color.parseColor("#2563EB")
-                        width = 8f
-                    }
-
-                    overlays.add(destinationMarker)
-                    overlays.add(shipperMarker)
-                    overlays.add(routePolyline)
-
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-        },
-        update = { mapView ->
-            try {
-                // Lấy lại các Overlays đã khởi tạo trong phần factory dựa theo ID hoặc thứ tự để cập nhật dữ liệu mới
-                val destinationMarker = mapView.overlays.firstOrNull { (it as? Marker)?.id == "destination" } as? Marker
-                val shipperMarker = mapView.overlays.firstOrNull { (it as? Marker)?.id == "shipper" } as? Marker
-                val routePolyline = mapView.overlays.firstOrNull { (it as? Polyline)?.id == "route" } as? Polyline
-
-                val isGoingToRestaurant = order.status == "ACCEPTED"
-                val destLat = if (isGoingToRestaurant) order.restaurantLat else order.customerLat
-                val destLng = if (isGoingToRestaurant) order.restaurantLng else order.customerLng
-
-                val defaultLat = deviceLocation?.get("lat") ?: 15.9733
-                val defaultLng = deviceLocation?.get("lng") ?: 108.2517
-
-                val finalLat = destLat ?: defaultLat
-                val finalLng = destLng ?: defaultLng
-                val destinationPoint = GeoPoint(finalLat, finalLng)
-
-                // 1. Cập nhật Marker điểm đến
-                destinationMarker?.apply {
-                    position = destinationPoint
-                    if (order.id == "HEATING_MAP_PREVIEW") {
-                        title = "Điểm giám sát hệ thống"
-                        try {
-                            icon = mapView.context.resources.getDrawable(org.osmdroid.library.R.drawable.marker_default, null).apply {
-                                setTint(android.graphics.Color.parseColor("#94A3B8"))
-                            }
-                        } catch (e: Exception) { e.printStackTrace() }
-                    } else {
-                        if (isGoingToRestaurant) {
-                            title = order.restaurantName.ifBlank { "Nhà hàng" }
-                            try {
-                                icon = mapView.context.resources.getDrawable(org.osmdroid.library.R.drawable.marker_default, null).apply {
-                                    setTint(android.graphics.Color.parseColor("#2ECC71"))
-                                }
-                            } catch (e: Exception) { e.printStackTrace() }
-                        } else {
-                            title = order.customerName.ifBlank { "Khách hàng" }
-                            try {
-                                icon = mapView.context.resources.getDrawable(org.osmdroid.library.R.drawable.marker_default, null).apply {
-                                    setTint(android.graphics.Color.parseColor("#E74C3C"))
-                                }
-                            } catch (e: Exception) { e.printStackTrace() }
-                        }
-                    }
-                }
-
-                // 2. Xác định tọa độ hiển thị của Shipper (Ưu tiên Firebase, nếu không có/Bản đồ nhiệt thì lấy GPS thiết bị)
-                val shipperPoint = if (order.id != "HEATING_MAP_PREVIEW" && order.id.isNotBlank()) {
-                    firebaseShipperPoint
-                } else {
-                    GeoPoint(defaultLat, defaultLng)
-                }
-
-                // 3. Cập nhật vị trí Shipper & Đường nối (Polyline)
-                if (shipperPoint != null) {
-                    shipperMarker?.position = shipperPoint
-                    routePolyline?.setPoints(listOf(shipperPoint, destinationPoint))
-
-                    // Di chuyển camera theo vị trí shipper nếu có cập nhật mới từ Firebase
-                    if (order.id != "HEATING_MAP_PREVIEW") {
-                        mapView.controller.animateTo(shipperPoint)
-                    } else {
-                        mapView.controller.setCenter(shipperPoint)
-                    }
-                }
-
-                mapView.invalidate()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        },
-        onRelease = { mapView ->
-            try {
-                mapView.onDetach()
-            } catch (e: Exception) {
-                e.printStackTrace()
+                    gpsSettingLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(exception.resolution.intentSender).build())
+                } catch (e: Exception) { e.printStackTrace() }
             }
         }
-    )
+    }
+
+    LaunchedEffect(locationPermissionState.status.isGranted, order.id) {
+        if (locationPermissionState.status.isGranted) {
+            shipperViewModel.fetchCurrentLocationOnce(context)
+            checkAndRequestGPS()
+        }
+    }
+
+    if (locationPermissionState.status.isGranted) {
+        val deviceLocation by shipperViewModel.currentShipperLocation.collectAsState()
+        val realRoutePoints by shipperViewModel.routePoints.collectAsState()
+        var firebaseRawShipperPoint by remember { mutableStateOf<GeoPoint?>(null) }
+
+        val trackingRef = remember(order.id) {
+            Firebase.database.getReference("tracking").child(order.id)
+        }
+
+        DisposableEffect(order.id) {
+            onDispose { shipperViewModel.stopLocationUpdates() }
+        }
+
+        DisposableEffect(order.id) {
+            var listener: ValueEventListener? = null
+            if (order.id.isNotBlank() && order.id != "HEATING_MAP_PREVIEW") {
+                listener = object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        try {
+                            val lat = (snapshot.child("lat").value as? Number)?.toDouble() ?: return
+                            val lng = (snapshot.child("lng").value as? Number)?.toDouble() ?: return
+                            firebaseRawShipperPoint = GeoPoint(lat, lng) // raw GPS location from Firebase
+                        } catch (e: Exception) { e.printStackTrace() }
+                    }
+                    override fun onCancelled(error: DatabaseError) {}
+                }
+                trackingRef.addValueEventListener(listener)
+            }
+            onDispose {
+                listener?.let { trackingRef.removeEventListener(it) }
+                shipperViewModel.clearRoute()
+            }
+        }
+
+        LaunchedEffect(firebaseRawShipperPoint, deviceLocation, order.id, order.status) {
+            val isGoingToRestaurant = order.status == "ACCEPTED"
+            val destLat = if (isGoingToRestaurant) order.restaurantLat else order.customerLat
+            val destLng = if (isGoingToRestaurant) order.restaurantLng else order.customerLng
+            if (destLat == null || destLng == null) return@LaunchedEffect
+
+            // Get Raw location to calculate route, no snap needed here
+            val startLat = firebaseRawShipperPoint?.latitude ?: deviceLocation?.get("lat")
+            val startLng = firebaseRawShipperPoint?.longitude ?: deviceLocation?.get("lng")
+            if (startLat == null || startLng == null) return@LaunchedEffect
+            shipperViewModel.fetchOSRMRoute(startLat, startLng, destLat, destLng)
+        }
+
+        AndroidView(
+            modifier = modifier,
+            factory = { ctx ->
+                val actualCtx = ctx.findActivity() ?: ctx
+                MapView(actualCtx).apply {
+                    try {
+                        setMultiTouchControls(true)
+                        setBuiltInZoomControls(false)
+                        controller.setZoom(17.5) // Higher zoom to see marker stick to road clearly
+
+                        setOnTouchListener { view, event ->
+                            if (event.action == MotionEvent.ACTION_DOWN) view.parent.requestDisallowInterceptTouchEvent(true)
+                            false
+                        }
+
+                        overlays.add(Marker(this).apply { setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM); id = "destination" })
+                        overlays.add(Marker(this).apply {
+                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                            title = "Vị trí của bạn"
+                            id = "shipper"
+                            icon = actualCtx.resources.getDrawable(org.osmdroid.library.R.drawable.person, null).apply { setTint(android.graphics.Color.parseColor("#2563EB")) }
+                        })
+                        overlays.add(Polyline(this).apply { id = "route"; color = android.graphics.Color.parseColor("#FF5722"); width = 12f })
+                        onResume()
+                    } catch (e: Exception) { e.printStackTrace() }
+                }
+            },
+            update = { mapView ->
+                try {
+                    val destinationMarker = mapView.overlays.firstOrNull { (it as? Marker)?.id == "destination" } as? Marker
+                    val shipperMarker = mapView.overlays.firstOrNull { (it as? Marker)?.id == "shipper" } as? Marker
+                    val routePolyline = mapView.overlays.firstOrNull { (it as? Polyline)?.id == "route" } as? Polyline
+
+                    val isGoingToRestaurant = order.status == "ACCEPTED"
+                    val destLat = if (isGoingToRestaurant) order.restaurantLat else order.customerLat
+                    val destLng = if (isGoingToRestaurant) order.restaurantLng else order.customerLng
+                    val destinationPoint = GeoPoint(destLat ?: 15.9733, destLng ?: 108.2517)
+
+                    destinationMarker?.apply {
+                        position = destinationPoint
+                        title = if (isGoingToRestaurant) "Nhà hàng: ${order.restaurantName}" else "Khách hàng"
+                    }
+
+                    // --- 🛠️ APPYLING SNAP-TO-ROAD LOGIC ---
+
+                    // 1. Get raw location (with GPS error)
+                    val rawShipperPoint = if (order.id != "HEATING_MAP_PREVIEW" && order.id.isNotBlank()) {
+                        firebaseRawShipperPoint ?: GeoPoint(deviceLocation?.get("lat") ?: 15.9733, deviceLocation?.get("lng") ?: 108.2517)
+                    } else {
+                        GeoPoint(deviceLocation?.get("lat") ?: 15.9733, deviceLocation?.get("lng") ?: 108.2517)
+                    }
+
+                    // 2. If route exists from OSRM, recalculate raw point to snap on road
+                    val shipperPointOnRoad = if (realRoutePoints.size >= 2) {
+                        android.util.Log.d("SNAP", "Applying snap-to-road, route size: ${realRoutePoints.size}")
+                        findClosestPointOnRoute(rawShipperPoint, realRoutePoints)
+                    } else {
+                        // If no route, keep raw GPS point (deviation acceptable in this case)
+                        android.util.Log.d("SNAP", "No route, raw GPS used")
+                        rawShipperPoint
+                    }
+
+                    // 3. Set marker position to point on road
+                    shipperMarker?.position = shipperPointOnRoad
+
+                    // --- Update map UI ---
+
+                    if (realRoutePoints.isNotEmpty()) {
+                        routePolyline?.setPoints(realRoutePoints)
+                    } else {
+                        routePolyline?.setPoints(listOf(rawShipperPoint, destinationPoint))
+                    }
+
+                    if (order.id != "HEATING_MAP_PREVIEW") {
+                        mapView.controller.animateTo(shipperPointOnRoad) // Center camera on road-snapped point
+                    } else {
+                        mapView.controller.setCenter(rawShipperPoint)
+                    }
+
+                    mapView.invalidate()
+                } catch (e: Exception) { e.printStackTrace() }
+            },
+            onRelease = { mapView -> try { mapView.onPause(); mapView.onDetach() } catch (e: Exception) { e.printStackTrace() } }
+        )
+    } else {
+        Box(modifier = modifier, contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "Ứng dụng cần quyền truy cập vị trí.")
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = { locationPermissionState.launchPermissionRequest() }) { Text(text = "Cấp quyền ngay") }
+            }
+        }
+    }
 }

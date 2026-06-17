@@ -1,8 +1,10 @@
 package com.example.dacs_3_composer.ui.shipper.dashboard
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.os.Looper
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -21,6 +23,7 @@ import com.google.firebase.database.ktx.database
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,9 +31,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
+import org.osmdroid.util.GeoPoint
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 class ShipperViewModel : ViewModel() {
 
@@ -53,6 +61,16 @@ class ShipperViewModel : ViewModel() {
     private val _currentShipperLocation = MutableStateFlow<Map<String, Double>?>(null)
     val currentShipperLocation: StateFlow<Map<String, Double>?> = _currentShipperLocation.asStateFlow()
 
+    private val _routePoints = MutableStateFlow<List<GeoPoint>>(emptyList())
+    val routePoints: StateFlow<List<GeoPoint>> = _routePoints.asStateFlow()
+
+    // ✅ FIX: OkHttpClient dùng chung với timeout
+    private val httpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .writeTimeout(15, TimeUnit.SECONDS)
+        .build()
+
     private var fusedLocationClient: FusedLocationProviderClient? = null
     private var locationCallback: LocationCallback? = null
     private var currentTrackingOrderId: String? = null
@@ -64,9 +82,7 @@ class ShipperViewModel : ViewModel() {
                 order.status == OrderStatus.COMPLETED.name && order.time.contains(today)
             }.sumOf { order -> order.shippingFee }
             "${String.format("%,.0f", totalToday)}đ"
-        } catch (e: Exception) {
-            "0đ"
-        }
+        } catch (e: Exception) { "0đ" }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -74,8 +90,7 @@ class ShipperViewModel : ViewModel() {
     )
 
     val completedOrdersCountStr: StateFlow<String> = _historyOrders.map { list ->
-        val count = list.count { it.status == OrderStatus.COMPLETED.name }
-        count.toString()
+        list.count { it.status == OrderStatus.COMPLETED.name }.toString()
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -92,19 +107,135 @@ class ShipperViewModel : ViewModel() {
     val currentShipperId: String
         get() = auth.currentUser?.uid ?: ""
 
-    // 🌟 GIẢI PHÁP TIÊN QUYẾT: Loại bỏ hoàn toàn việc lắng nghe tự động khi UID chưa sẵn sàng trong khối init
     init {
-        // Chỉ chạy trạng thái ban đầu một cách an toàn
         observeShipperStatus()
     }
 
-    // Hàm kích hoạt thủ công từ Màn hình khi kiểm tra chắc chắn đã Đăng nhập thành công
     fun startAllListeners() {
         val uid = currentShipperId
         if (uid.isNotBlank()) {
             listenToActiveDelivery()
             listenToHistoryOrders()
         }
+    }
+
+    // ✅ FIX CHÍNH: Thêm log, timeout, server backup
+    fun fetchOSRMRoute(startLat: Double, startLng: Double, endLat: Double, endLng: Double) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val serverUrls = listOf(
+                "https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=polyline",
+                "https://routing.openstreetmap.de/routed-car/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=polyline"
+            )
+
+            Log.d("OSRM", "=== fetchOSRMRoute called ===")
+            Log.d("OSRM", "Start: lat=$startLat, lng=$startLng")
+            Log.d("OSRM", "End:   lat=$endLat, lng=$endLng")
+
+            var success = false
+
+            for ((index, url) in serverUrls.withIndex()) {
+                if (success) break
+                Log.d("OSRM", "Trying server ${index + 1}: $url")
+
+                try {
+                    val request = Request.Builder().url(url).build()
+
+                    httpClient.newCall(request).execute().use { response ->
+                        Log.d("OSRM", "Server ${index + 1} response code: ${response.code}")
+
+                        if (!response.isSuccessful) {
+                            Log.w("OSRM", "Server ${index + 1} returned unsuccessful: ${response.code}")
+                            return@use
+                        }
+
+                        val responseData = response.body?.string()
+                        if (responseData.isNullOrBlank()) {
+                            Log.w("OSRM", "Server ${index + 1} returned empty body")
+                            return@use
+                        }
+
+                        Log.d("OSRM", "Response body length: ${responseData.length} chars")
+
+                        val jsonObject = JSONObject(responseData)
+                        val code = jsonObject.optString("code", "")
+                        Log.d("OSRM", "OSRM code: $code")
+
+                        if (code != "Ok") {
+                            Log.w("OSRM", "OSRM returned non-Ok code: $code")
+                            return@use
+                        }
+
+                        val routes = jsonObject.getJSONArray("routes")
+                        Log.d("OSRM", "Number of routes: ${routes.length()}")
+
+                        if (routes.length() == 0) {
+                            Log.w("OSRM", "No routes found")
+                            return@use
+                        }
+
+                        val geometry = routes.getJSONObject(0).getString("geometry")
+                        Log.d("OSRM", "Geometry string length: ${geometry.length}")
+
+                        val decodedPoints = decodePolylineToGeoPoints(geometry)
+                        Log.d("OSRM", "Decoded ${decodedPoints.size} GeoPoints")
+
+                        if (decodedPoints.isNotEmpty()) {
+                            _routePoints.value = decodedPoints
+                            success = true
+                            Log.d("OSRM", "✅ Route set successfully with ${decodedPoints.size} points")
+                        } else {
+                            Log.w("OSRM", "Decoded points list is empty")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("OSRM", "Server ${index + 1} exception: ${e.javaClass.simpleName}: ${e.message}")
+                }
+            }
+
+            if (!success) {
+                Log.e("OSRM", "❌ All servers failed. Route will show as straight line.")
+            }
+        }
+    }
+
+    private fun decodePolylineToGeoPoints(encoded: String): List<GeoPoint> {
+        val poly = ArrayList<GeoPoint>()
+        var index = 0
+        val len = encoded.length
+        var lat = 0
+        var lng = 0
+
+        while (index < len) {
+            var b: Int
+            var shift = 0
+            var result = 0
+            do {
+                b = encoded[index++].code - 63
+                result = result or (b and 0x1f shl shift)
+                shift += 5
+            } while (b >= 0x20)
+            val dlat = if (result and 1 != 0) (result ushr 1).inv() else result ushr 1
+            lat += dlat
+
+            shift = 0
+            result = 0
+            do {
+                b = encoded[index++].code - 63
+                result = result or (b and 0x1f shl shift)
+                shift += 5
+            } while (b >= 0x20)
+            val dlng = if (result and 1 != 0) (result ushr 1).inv() else result ushr 1
+            lng += dlng
+
+            val pLat = lat.toDouble() / 1E5
+            val pLng = lng.toDouble() / 1E5
+            poly.add(GeoPoint(pLat, pLng))
+        }
+        return poly
+    }
+
+    fun clearRoute() {
+        _routePoints.value = emptyList()
     }
 
     @SuppressLint("MissingPermission")
@@ -134,7 +265,8 @@ class ShipperViewModel : ViewModel() {
                 if (snapshot != null && snapshot.exists()) {
                     val isAvailable = snapshot.getBoolean("isAvailable") ?: false
                     _isReadyToWork.value = isAvailable
-                    if (isAvailable) startListeningAvailableOrders() else stopListeningAvailableOrders()
+                    if (isAvailable) startListeningAvailableOrders()
+                    else stopListeningAvailableOrders()
                 }
             }
     }
@@ -159,7 +291,6 @@ class ShipperViewModel : ViewModel() {
                     val list = mutableListOf<Order>()
                     for (document in snapshot.documents) {
                         try {
-                            // Bọc toàn bộ quá trình parse đối tượng tránh crash diện rộng
                             val order = document.toObject(Order::class.java)?.apply {
                                 id = document.id
                                 restaurantLat = (document.get("restaurantLat") as? Number)?.toDouble()
@@ -251,8 +382,9 @@ class ShipperViewModel : ViewModel() {
         currentTrackingOrderId = orderId
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
-            .setMinUpdateIntervalMillis(3000)
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 4000)
+            .setMinUpdateIntervalMillis(2000)
+            .setMinUpdateDistanceMeters(2f)
             .build()
 
         locationCallback = object : LocationCallback() {
@@ -267,13 +399,53 @@ class ShipperViewModel : ViewModel() {
                 if (currentTrackingOrderId != null && currentTrackingOrderId != "HEATING_MAP_PREVIEW") {
                     try {
                         realtimeDb.child(orderId).setValue(coordinates)
+                            .addOnSuccessListener {
+                                Log.d("GPS_TRACKING", "🚀 Tọa độ cập nhật thành công: $coordinates")
+                            }
                     } catch (e: Exception) { e.printStackTrace() }
                 }
             }
         }
 
         try {
-            fusedLocationClient?.requestLocationUpdates(locationRequest, locationCallback!!, Looper.getMainLooper())
+            fusedLocationClient?.requestLocationUpdates(
+                locationRequest,
+                locationCallback!!,
+                Looper.getMainLooper()
+            )
+            Log.d("GPS_TRACKING", "⚡ Bắt đầu nhận tín hiệu luồng GPS liên tục.")
+        } catch (e: Exception) { e.printStackTrace() }
+    }
+
+    // Hàm phụ để kích hoạt lắng nghe tọa độ (được tách ra từ logic trên)
+    @SuppressLint("MissingPermission")
+    private fun requestLocationExecution(locationRequest: LocationRequest, orderId: String) {
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                val lastLocation = locationResult.lastLocation ?: return
+                val coordinates = mapOf(
+                    "lat" to lastLocation.latitude,
+                    "lng" to lastLocation.longitude
+                )
+                _currentShipperLocation.value = coordinates
+
+                if (currentTrackingOrderId != null && currentTrackingOrderId != "HEATING_MAP_PREVIEW") {
+                    try {
+                        realtimeDb.child(orderId).setValue(coordinates)
+                            .addOnSuccessListener {
+                                Log.d("GPS_TRACKING", "🚀 Tọa độ cập nhật thành công: $coordinates")
+                            }
+                    } catch (e: Exception) { e.printStackTrace() }
+                }
+            }
+        }
+
+        try {
+            fusedLocationClient?.requestLocationUpdates(
+                locationRequest,
+                locationCallback!!,
+                Looper.getMainLooper()
+            )
         } catch (e: Exception) { e.printStackTrace() }
     }
 
