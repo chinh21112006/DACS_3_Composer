@@ -17,13 +17,26 @@ import com.example.dacs_3_composer.R
 import com.example.dacs_3_composer.data.model.Restaurant
 import com.example.dacs_3_composer.ui.user.home.HomeScreen
 import com.example.dacs_3_composer.ui.user.order.OrderScreen
-import com.example.dacs_3_composer.ui.user.orderDaital.OrderTrackingScreen
+import com.example.dacs_3_composer.ui.user.order.OrderDetailScreen
+import com.example.dacs_3_composer.ui.user.order.OrderViewModel
 import com.example.dacs_3_composer.ui.user.profile.ProfileScreen
 import com.example.dacs_3_composer.ui.user.profileRestaurant.RestaurantDetailScreen
 import com.example.dacs_3_composer.ui.user.search.SearchScreen
 import com.example.dacs_3_composer.ui.user.cart.CartViewModel
 import com.example.dacs_3_composer.ui.user.cart.CartScreen
 import com.example.dacs_3_composer.ui.user.notification.NotificationScreen
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.runtime.getValue
+import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 @Composable
 fun MainRouteContainerUser(
@@ -31,8 +44,9 @@ fun MainRouteContainerUser(
 ) {
     val navController = rememberNavController()
 
-    // Khởi tạo bộ não giỏ hàng dùng chung ở cấp cha cao nhất
+    // Khởi tạo các ViewModel dùng chung ở cấp cha cao nhất
     val cartViewModel: CartViewModel = viewModel()
+    val orderViewModel: OrderViewModel = viewModel()
 
     val sampleRestaurant = listOf(Restaurant(
         name = "The Coffee House",
@@ -45,67 +59,68 @@ fun MainRouteContainerUser(
     ))
 
     Scaffold(
-        bottomBar = { BottomBar(navController = navController) }
+        bottomBar = { BottomBarUser(navController = navController) }
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             NavHost(navController = navController, startDestination = "home") {
                 // Trang chủ
-                // Bên trong NavHost của MainRouteContainerUser.kt
                 composable("home") {
                     HomeScreen(
                         navController = navController,
-                        // 🌟 Định nghĩa hành động khi bấm tìm kiếm: nhảy sang màn hình search kèm tham số
                         onNavigateToSearch = { query ->
                             navController.navigate("search/$query")
                         }
                     )
                 }
-                // 🌟 THÊM ROUTE NÀY VÀO ĐỂ HỨNG ĐIỀU HƯỚNG TỪ BOTTOMBAR MỚI
-                // Tìm đoạn này trong khối NavHost của MainRouteContainerUser.kt:
+
+                // Trang thông báo
                 composable("notification") {
-                    // 🚀 Thế màn hình thông báo thật chúng ta vừa làm vào đây
                     NotificationScreen()
                 }
+
+                // Tìm kiếm món ăn/nhà hàng
                 composable(
                     route = "search/{query}"
                 ) { backStackEntry ->
                     val query = backStackEntry.arguments?.getString("query") ?: ""
                     SearchScreen(
                         searchQuery = query,
-                        navController = navController, // 🚀 Thêm dòng này vào
+                        navController = navController,
                         onBackClick = { navController.popBackStack() }
                     )
                 }
 
-                // 🌟 ĐÃ SỬA: Khi bấm nút "Theo dõi đơn", ta nhận mã id đơn hàng thật và truyền đi
+                // Trang Quản lý Đơn hàng
                 composable("order") {
                     OrderScreen(
                         suggestedRestaurants = sampleRestaurant,
+                        orderViewModel = orderViewModel,
                         chuyenHienThiTrangChiTiet = { orderId ->
                             navController.navigate("order_tracking/$orderId")
                         }
                     )
                 }
 
-                // 🌟 ĐÃ SỬA: Cấu hình tuyến đường nhận tham số mã đơn hàng động {orderId} từ màn hình Order bắn sang
+                // Tuyến đường hiển thị chi tiết hóa đơn đặt hàng (OrderDetailScreen)
                 composable(
                     route = "order_tracking/{orderId}",
                     arguments = listOf(navArgument("orderId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
 
-                    OrderTrackingScreen(
-                        orderId = orderId, // 🚀 Bắn mã đơn hàng thật vào màn hình chi tiết để lấy dữ liệu từ Firebase
+                    OrderDetailScreen(
+                        orderId = orderId,
+                        orderViewModel = orderViewModel,
                         onBackClick = {
                             navController.popBackStack()
                         }
                     )
                 }
 
+                // Trang thông tin cá nhân
                 composable("profile") {
                     ProfileScreen(
                         onLogoutClick = onLogout,
-                        // 🚀 THÊM MỚI 2 SỰ KIỆN ĐIỀU HƯỚNG RA NGOÀI
                         onNavigateToOrderHistory = {
                             navController.navigate("order") {
                                 launchSingleTop = true
@@ -116,7 +131,8 @@ fun MainRouteContainerUser(
                         }
                     )
                 }
-                // 🌟 THÊM ROUTE CHO MÀN HÌNH ĐỊA CHỈ MỚI
+
+                // Trang Quản lý danh sách địa chỉ đã lưu
                 composable("manage_address") {
                     com.example.dacs_3_composer.ui.user.profile.AddressScreen(
                         onBackClick = { navController.popBackStack() }
@@ -151,5 +167,73 @@ fun MainRouteContainerUser(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun BottomBarUser(navController: NavController) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    // Danh sách các màn hình gốc chân đế hiển thị Thanh BottomBar
+    val mainDestinations = listOf("home", "notification", "order", "profile")
+    if (currentRoute !in mainDestinations) return // Tự động ẩn thanh điều hướng khi vào màn hình chi tiết hoặc giỏ hàng!
+
+    NavigationBar {
+        // 1. Home
+        NavigationBarItem(
+            selected = currentRoute == "home",
+            onClick = {
+                navController.navigate("home") {
+                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            },
+            icon = { Icon(Icons.Default.Home, contentDescription = "Trang chủ") },
+            label = { Text("Home") }
+        )
+
+        // 2. Thông báo
+        NavigationBarItem(
+            selected = currentRoute == "notification",
+            onClick = {
+                navController.navigate("notification") {
+                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            },
+            icon = { Icon(Icons.Default.Notifications, contentDescription = "Thông báo") },
+            label = { Text("Notification") }
+        )
+
+        // 3. Đơn hàng
+        NavigationBarItem(
+            selected = currentRoute == "order",
+            onClick = {
+                navController.navigate("order"){
+                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            },
+            icon = { Icon(Icons.Default.Receipt, contentDescription = "Đơn hàng") },
+            label = { Text("Product") }
+        )
+
+        // 4. Cá nhân
+        NavigationBarItem(
+            selected = currentRoute == "profile",
+            onClick = {
+                navController.navigate("profile"){
+                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            },
+            icon = { Icon(Icons.Default.Person, contentDescription = "Cá nhân") },
+            label = { Text("Profile") }
+        )
     }
 }

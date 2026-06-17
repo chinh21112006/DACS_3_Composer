@@ -22,26 +22,27 @@ data class Order(
     var time: String = "",
     var status: String = "PENDING",
 
-    // Cấu trúc tiền chuẩn giống hệt Firebase Console
+    // Cấu trúc tiền tệ và Khuyến mãi
     var totalDishPrice: Double = 0.0,    // Giá gốc tổng các món ăn
-    var shippingFee: Double = 20000.0,   // Tiền ship cố định 20k cho mỗi đơn hàng
-    var totalPrice: Double = 0.0,        // Số tiền cuối cùng Khách trả = totalDishPrice + shippingFee
+    var shippingFee: Double = 20000.0,   // Phí vận chuyển
+    var totalPrice: Double = 0.0,        // Số tiền cuối cùng khách trả (Đã trừ discount)
+
+    // BỘ BA TRƯỜNG THÔNG TIN KHUYẾN MÃI ĐƯỢC LƯU TRỰC TIẾP VÀO ĐƠN HÀNG
+    var appliedPromotionId: String? = null,      // ID tài liệu trên Firebase (Document ID)
+    var appliedPromotionTitle: String = "",      // Tên hiển thị của voucher (Ví dụ: "giảm giá 30k")
+    var promotionDiscount: Double = 0.0,         // Số tiền thực tế được giảm (Ví dụ: 30000.0)
 
     // 2. Thông tin của KHÁCH HÀNG (Người mua)
     var userId: String = "",
     var customerName: String = "",
     var customerPhone: String = "",
     var customerAddress: String = "",
-
-    // 🌟 BỔ SUNG TOẠ ĐỘ KHÁCH HÀNG
     var customerLat: Double? = null,
     var customerLng: Double? = null,
 
     // 3. Thông tin của NHÀ HÀNG (Người bán)
     var restaurantId: String = "",
     var restaurantName: String = "",
-
-    // 🌟 BỔ SUNG TOẠ ĐỘ NHÀ HÀNG
     var restaurantLat: Double? = null,
     var restaurantLng: Double? = null,
 
@@ -51,14 +52,20 @@ data class Order(
     // 5. Danh sách các món ăn trong đơn
     var items: List<OrderItem> = emptyList()
 ) {
-    // Constructor không tham số bắt buộc để Firebase Firestore ánh xạ (mapping) tự động
+    // Constructor không tham số bắt buộc để Firebase Firestore ánh xạ (mapping) tự động mượt mà
     constructor() : this(
         id = "", time = "", status = "PENDING",
         totalDishPrice = 0.0, shippingFee = 20000.0, totalPrice = 0.0,
+
+        // Khởi tạo giá trị mặc định an toàn cho các trường khuyến mãi mới
+        appliedPromotionId = null,
+        appliedPromotionTitle = "",
+        promotionDiscount = 0.0,
+
         userId = "", customerName = "", customerPhone = "", customerAddress = "",
-        customerLat = null, customerLng = null, // 🌟 Khởi tạo mặc định null
+        customerLat = null, customerLng = null,
         restaurantId = "", restaurantName = "",
-        restaurantLat = null, restaurantLng = null, // 🌟 Khởi tạo mặc định null
+        restaurantLat = null, restaurantLng = null,
         shipperId = "", items = emptyList()
     )
 }
