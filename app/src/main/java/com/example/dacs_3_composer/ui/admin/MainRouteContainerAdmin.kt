@@ -30,11 +30,10 @@ fun MainRouteContainerAdmin(
 ) {
     val navController = rememberNavController()
 
-    // Danh sách các mục hiển thị dưới thanh BottomBar điều hướng của Super Admin
+    // Danh sách 5 mục hiển thị dưới thanh BottomBar điều hướng của Super Admin
     val navigationItems = listOf(
         NavigationAdmin.Overview,
-        NavigationAdmin.Orders,
-        NavigationAdmin.Payments,
+//         NavigationAdmin.Orders,
         NavigationAdmin.Customers,
         NavigationAdmin.Promotions,
         NavigationAdmin.Profile
@@ -83,7 +82,7 @@ fun MainRouteContainerAdmin(
                         },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = Color.White,
-                            selectedTextColor = Color(0xFF2159BC),
+                            selectedTextColor = Color(0xFF2159BC), // Màu xanh chủ đạo của app
                             indicatorColor = Color(0xFF2159BC),
                             unselectedIconColor = Color(0xFFC4C7C5),
                             unselectedTextColor = Color(0xFF727785)
@@ -95,35 +94,35 @@ fun MainRouteContainerAdmin(
     ) { paddingValues ->
         NavHost(
             navController = navController,
-            startDestination = NavigationAdmin.Overview.route,
+            startDestination = NavigationAdmin.Overview.route, // Màn hình mặc định ban đầu là Báo cáo & Thống kê
             modifier = Modifier.padding(paddingValues)
         ) {
+            // Tab 1: Báo cáo & Thống kê
             composable(NavigationAdmin.Overview.route) {
                 AdminAnalyticsScreen()
             }
 
+            // Tab 2: Đơn hàng & Xử lý Khiếu nại
             composable(NavigationAdmin.Orders.route) {
                 AdminComplaintScreen()
-            }
-            
-            // ✅ Tab 3: Quản lý Giao dịch PayOS
-            composable(NavigationAdmin.Payments.route) {
-                AdminPaymentScreen()
             }
 
 //            composable(NavigationAdmin.Categories.route) {
 //                AdminCategoryScreen()
 //            }
 
+            // Tab 5: Quản lý Khách hàng (Nhãn hiển thị UI: Cá nhân)
             composable(NavigationAdmin.Customers.route) {
                 AdminCustomerScreen()
             }
 
+            // Tab 3: Quản lý Hồ sơ & Cài đặt hệ thống
             composable(NavigationAdmin.Profile.route) {
+                // 🎯 Đã loại bỏ 'onNavigateToAccountInfo' để khớp hoàn toàn với cấu trúc Dialog sửa tại chỗ của Screen
                 AdminProfileScreen(
-                    onNavigateToVehicleManagement = { },
-                    onNavigateToNotification = { },
-                    onNavigateToSupport = { },
+                    onNavigateToVehicleManagement = { /* Điều hướng tới màn hình quản lý xe nếu có */ },
+                    onNavigateToNotification = { /* Điều hướng tới màn hình Payout Settings hoặc thông báo */ },
+                    onNavigateToSupport = { /* Điều hướng tới bộ phận hỗ trợ */ },
                     onLogoutCallbackk = (onLogoutCallback)
                 )
             }

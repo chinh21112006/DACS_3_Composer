@@ -144,7 +144,6 @@ fun ShipperMapView(
             }
         }
     }
-
     LaunchedEffect(locationPermissionState.status.isGranted, order.id) {
         if (locationPermissionState.status.isGranted) {
             shipperViewModel.fetchCurrentLocationOnce(context)
@@ -219,7 +218,9 @@ fun ShipperMapView(
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                             title = "Vị trí của bạn"
                             id = "shipper"
-                            icon = actualCtx.resources.getDrawable(org.osmdroid.library.R.drawable.person, null).apply { setTint(android.graphics.Color.parseColor("#2563EB")) }
+                            icon = actualCtx.resources.getDrawable(android.R.drawable.ic_menu_mylocation, null).apply {
+                                setTint(android.graphics.Color.parseColor("#2563EB"))
+                            }
                         })
                         overlays.add(Polyline(this).apply { id = "route"; color = android.graphics.Color.parseColor("#FF5722"); width = 12f })
                         onResume()
