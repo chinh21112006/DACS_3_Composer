@@ -18,6 +18,23 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/INDEX.LIST"
+            excludes += "META-INF/io.netty.versions.properties"
+            excludes += "META-INF/okio.kotlin_module"
+            excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/LICENSE"
+            excludes += "META-INF/LICENSE.txt"
+            excludes += "META-INF/license.txt"
+            excludes += "META-INF/NOTICE"
+            excludes += "META-INF/NOTICE.txt"
+            excludes += "META-INF/notice.txt"
+            excludes += "META-INF/ASL2.0"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -37,31 +54,21 @@ android {
 }
 
 dependencies {
-    dependencies {
-        implementation("com.google.maps.android:maps-compose:4.3.3")
-// Google Play Services Maps Core
-        implementation("com.google.android.gms:play-services-maps:18.2.0")
-// Thư viện tiện ích giải mã Polyline (Lần này dùng vô tư vì đã có Google Maps)
-        implementation("com.google.maps.android:android-maps-utils:3.4.0")
-// Thư viện mạng OkHttp
-        implementation("com.squareup.okhttp3:okhttp:4.12.0")
-//        Thư viện cấp vị trí (Location)
-        implementation("com.google.accompanist:accompanist-permissions:0.34.0")
-        // Thư viện bản đồ OpenStreetMap miễn phí
-        implementation("org.osmdroid:osmdroid-android:6.1.20")
-        // Firebase Realtime Database để đồng bộ vị trí real-time
-        implementation("com.google.firebase:firebase-database-ktx:21.0.0")
-        // Thư viện Play Services Location để lấy GPS (nếu chưa có)
-        implementation("com.google.android.gms:play-services-location:21.2.0")
-    }
+    implementation("com.google.maps.android:maps-compose:4.3.3")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.maps.android:android-maps-utils:3.4.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
+    implementation("org.osmdroid:osmdroid-android:6.1.20")
+    implementation("com.google.firebase:firebase-database-ktx:21.0.0")
+    implementation("com.google.android.gms:play-services-location:21.2.0")
+
     implementation(platform("com.google.firebase:firebase-bom:33.13.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
-    // Thư viện Cloudinary Android SDK chính thức
     implementation("com.cloudinary:cloudinary-android:3.0.2")
-    // Thư viện Coil hỗ trợ hiển thị ảnh từ URL mạng lên Jetpack Compose
     implementation("io.coil-kt:coil-compose:2.6.0")
 
     implementation(libs.androidx.core.ktx)
@@ -82,6 +89,21 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
+
+    // ✅ Networking
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.gson)
+    implementation(libs.okhttp.logging)
+    implementation(libs.androidx.browser)
+
+    // ✅ Ktor Server (Dùng Engine CIO ổn định hơn Netty trên Android)
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.cio)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.serialization.gson)
+
+    // ✅ PayOS SDK
+    implementation(libs.payos.java)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
