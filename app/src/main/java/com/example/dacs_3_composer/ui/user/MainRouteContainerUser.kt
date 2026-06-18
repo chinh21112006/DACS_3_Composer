@@ -13,6 +13,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.example.dacs_3_composer.R
 import com.example.dacs_3_composer.data.model.Restaurant
 import com.example.dacs_3_composer.ui.user.home.HomeScreen
@@ -33,20 +34,71 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.dacs_3_composer.data.remote.PaymentApiService
+import com.example.dacs_3_composer.data.repository.PaymentRepository
+import com.example.dacs_3_composer.ui.user.payment.PaymentScreen
+import com.example.dacs_3_composer.ui.user.payment.PaymentViewModel
+import com.example.dacs_3_composer.ui.user.payment.PaymentHistoryScreen
+import okhttp3.ConnectionPool
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.net.Proxy
+import java.util.concurrent.TimeUnit
 
 @Composable
 fun MainRouteContainerUser(
     onLogout: () -> Unit = {}
 ) {
     val navController = rememberNavController()
-
-    // Khởi tạo các ViewModel dùng chung ở cấp cha cao nhất
     val cartViewModel: CartViewModel = viewModel()
     val orderViewModel: OrderViewModel = viewModel()
+
+    // ✅ CẤU HÌNH TỐI ƯU CHO KẾT NỐI LOCAL
+    val okHttpClient = remember {
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+
+        OkHttpClient.Builder()
+            .protocols(listOf(Protocol.HTTP_1_1))
+            .proxy(Proxy.NO_PROXY)
+            .retryOnConnectionFailure(true)
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .addInterceptor(logging)
+            .build()
+    }
+
+    // ✅ KHÔNG DÙNG REMEMBER ĐỂ TRÁNH CACHED GIÁ TRỊ CŨ 8080
+    val retrofit = Retrofit.Builder()
+        .baseUrl("http://127.0.0.1:8888/")
+        .client(okHttpClient)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    val paymentApiService = retrofit.create(PaymentApiService::class.java)
+    val paymentRepository = PaymentRepository(paymentApiService)
+
+    val paymentViewModel: PaymentViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return PaymentViewModel(paymentRepository) as T
+            }
+        }
+    )
 
     val sampleRestaurant = listOf(Restaurant(
         name = "The Coffee House",
@@ -63,107 +115,85 @@ fun MainRouteContainerUser(
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             NavHost(navController = navController, startDestination = "home") {
-                // Trang chủ
                 composable("home") {
-                    HomeScreen(
-                        navController = navController,
-                        onNavigateToSearch = { query ->
-                            navController.navigate("search/$query")
-                        }
-                    )
+                    HomeScreen(navController = navController, onNavigateToSearch = { query -> navController.navigate("search/$query") })
                 }
-
-                // Trang thông báo
-                composable("notification") {
-                    NotificationScreen()
-                }
-
-                // Tìm kiếm món ăn/nhà hàng
-                composable(
-                    route = "search/{query}"
-                ) { backStackEntry ->
+                composable("notification") { NotificationScreen() }
+                composable("search/{query}") { backStackEntry ->
                     val query = backStackEntry.arguments?.getString("query") ?: ""
-                    SearchScreen(
-                        searchQuery = query,
-                        navController = navController,
-                        onBackClick = { navController.popBackStack() }
-                    )
+                    SearchScreen(searchQuery = query, navController = navController, onBackClick = { navController.popBackStack() })
                 }
-
-                // Trang Quản lý Đơn hàng
                 composable("order") {
                     OrderScreen(
                         suggestedRestaurants = sampleRestaurant,
                         orderViewModel = orderViewModel,
-                        chuyenHienThiTrangChiTiet = { orderId ->
-                            navController.navigate("order_tracking/$orderId")
-                        }
+                        chuyenHienThiTrangChiTiet = { orderId -> navController.navigate("order_tracking/$orderId") },
+                        onNavigateToPayment = { orderId, amount -> navController.navigate("payment/$orderId/$amount") }
                     )
                 }
-
-                // Tuyến đường hiển thị chi tiết hóa đơn đặt hàng (OrderDetailScreen)
                 composable(
-                    route = "order_tracking/{orderId}",
-                    arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+                    route = "order_tracking/{orderId}?status={status}",
+                    arguments = listOf(
+                        navArgument("orderId") { type = NavType.StringType },
+                        navArgument("status") { type = NavType.StringType; nullable = true }
+                    ),
+                    deepLinks = listOf(navDeepLink { uriPattern = "dacs3://payment_callback?orderId={orderId}&status={status}" })
                 ) { backStackEntry ->
                     val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
+                    val status = backStackEntry.arguments?.getString("status")
+
+                    // ✅ XỬ LÝ CẬP NHẬT TRẠNG THÁI KHI QUAY LẠI TỪ PAYOS
+                    LaunchedEffect(status) {
+                        if (status == "PAID") {
+                            orderViewModel.updateOrderToPaid(orderId)
+                        }
+                    }
 
                     OrderDetailScreen(
                         orderId = orderId,
                         orderViewModel = orderViewModel,
-                        onBackClick = {
-                            navController.popBackStack()
-                        }
+                        onBackClick = { navController.popBackStack() },
+                        onNavigateToPayment = { id, amount -> navController.navigate("payment/$id/$amount") }
                     )
                 }
-
-                // Trang thông tin cá nhân
                 composable("profile") {
                     ProfileScreen(
                         onLogoutClick = onLogout,
-                        onNavigateToOrderHistory = {
-                            navController.navigate("order") {
-                                launchSingleTop = true
-                            }
-                        },
-                        onNavigateToManageAddress = {
-                            navController.navigate("manage_address")
-                        }
+                        onNavigateToOrderHistory = { navController.navigate("order") { launchSingleTop = true } },
+                        onNavigateToManageAddress = { navController.navigate("manage_address") },
+                        onNavigateToPaymentHistory = { navController.navigate("payment_history") }
                     )
                 }
-
-                // Trang Quản lý danh sách địa chỉ đã lưu
                 composable("manage_address") {
-                    com.example.dacs_3_composer.ui.user.profile.AddressScreen(
-                        onBackClick = { navController.popBackStack() }
-                    )
+                    com.example.dacs_3_composer.ui.user.profile.AddressScreen(onBackClick = { navController.popBackStack() })
                 }
-
-                // Tuyến đường chi tiết quán ăn
-                composable(
-                    route = "restaurant_detail/{restaurantId}"
-                ) { backStackEntry ->
+                composable("payment_history") {
+                    PaymentHistoryScreen(onBackClick = { navController.popBackStack() })
+                }
+                composable("restaurant_detail/{restaurantId}") { backStackEntry ->
                     val restaurantId = backStackEntry.arguments?.getString("restaurantId") ?: ""
-
                     RestaurantDetailScreen(
-                        restaurantId = restaurantId,
-                        cartViewModel = cartViewModel,
+                        restaurantId = restaurantId, cartViewModel = cartViewModel,
                         onBackClick = { navController.popBackStack() },
-                        onAddToCart = { dish ->
-                            cartViewModel.addToCart(dish)
-                        },
-                        onViewCartClick = {
-                            navController.navigate("cart")
-                        }
+                        onAddToCart = { dish -> cartViewModel.addToCart(dish) },
+                        onViewCartClick = { navController.navigate("cart") }
                     )
                 }
-
-                // Tuyến đường đến màn hình giỏ hàng
                 composable("cart") {
                     CartScreen(
                         cartViewModel = cartViewModel,
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.popBackStack() },
+                        onNavigateToPayment = { orderId, amount -> navController.navigate("payment/$orderId/$amount") }
                     )
+                }
+                composable("payment/{orderId}/{amount}", arguments = listOf(navArgument("orderId") { type = NavType.StringType }, navArgument("amount") { type = NavType.StringType })) { backStackEntry ->
+                    val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
+                    val amountStr = backStackEntry.arguments?.getString("amount") ?: "0.0"
+                    val amount = amountStr.toDoubleOrNull() ?: 0.0
+                    PaymentScreen(orderId = orderId, amount = amount, viewModel = paymentViewModel, onPaymentFinished = {
+                        cartViewModel.clearCart()
+                        navController.navigate("order") { popUpTo("home") { inclusive = false } }
+                    })
                 }
             }
         }
@@ -174,65 +204,32 @@ fun MainRouteContainerUser(
 fun BottomBarUser(navController: NavController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
-    // Danh sách các màn hình gốc chân đế hiển thị Thanh BottomBar
     val mainDestinations = listOf("home", "notification", "order", "profile")
-    if (currentRoute !in mainDestinations) return // Tự động ẩn thanh điều hướng khi vào màn hình chi tiết hoặc giỏ hàng!
+    if (currentRoute !in mainDestinations) return
 
     NavigationBar {
-        // 1. Home
         NavigationBarItem(
             selected = currentRoute == "home",
-            onClick = {
-                navController.navigate("home") {
-                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                    launchSingleTop = true
-                    restoreState = true
-                }
-            },
-            icon = { Icon(Icons.Default.Home, contentDescription = "Trang chủ") },
+            onClick = { navController.navigate("home") { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true } },
+            icon = { Icon(Icons.Default.Home, contentDescription = null) },
             label = { Text("Home") }
         )
-
-        // 2. Thông báo
         NavigationBarItem(
             selected = currentRoute == "notification",
-            onClick = {
-                navController.navigate("notification") {
-                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                    launchSingleTop = true
-                    restoreState = true
-                }
-            },
-            icon = { Icon(Icons.Default.Notifications, contentDescription = "Thông báo") },
+            onClick = { navController.navigate("notification") { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true } },
+            icon = { Icon(Icons.Default.Notifications, contentDescription = null) },
             label = { Text("Notification") }
         )
-
-        // 3. Đơn hàng
         NavigationBarItem(
             selected = currentRoute == "order",
-            onClick = {
-                navController.navigate("order"){
-                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                    launchSingleTop = true
-                    restoreState = true
-                }
-            },
-            icon = { Icon(Icons.Default.Receipt, contentDescription = "Đơn hàng") },
+            onClick = { navController.navigate("order") { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true } },
+            icon = { Icon(Icons.Default.Receipt, contentDescription = null) },
             label = { Text("Product") }
         )
-
-        // 4. Cá nhân
         NavigationBarItem(
             selected = currentRoute == "profile",
-            onClick = {
-                navController.navigate("profile"){
-                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                    launchSingleTop = true
-                    restoreState = true
-                }
-            },
-            icon = { Icon(Icons.Default.Person, contentDescription = "Cá nhân") },
+            onClick = { navController.navigate("profile") { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true } },
+            icon = { Icon(Icons.Default.Person, contentDescription = null) },
             label = { Text("Profile") }
         )
     }
