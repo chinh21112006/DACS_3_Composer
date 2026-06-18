@@ -16,10 +16,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.dacs_3_composer.ui.admin.analytics.AdminAnalyticsScreen
-import com.example.dacs_3_composer.ui.admin.category.AdminCategoryScreen
 import com.example.dacs_3_composer.ui.admin.complaint.AdminComplaintScreen
 import com.example.dacs_3_composer.ui.admin.customer.AdminCustomerScreen
 import com.example.dacs_3_composer.ui.admin.profile.AdminProfileScreen
+import com.example.dacs_3_composer.ui.admin.payments.AdminPaymentScreen
 import com.example.dacs_3_composer.ui.admin.settings.AdminPromotionScreen
 import com.example.dacs_3_composer.ui.admin.settings.AdminPromotionViewModel
 
@@ -33,8 +33,7 @@ fun MainRouteContainerAdmin(
     // Danh sách 5 mục hiển thị dưới thanh BottomBar điều hướng của Super Admin
     val navigationItems = listOf(
         NavigationAdmin.Overview,
-        NavigationAdmin.Orders,
-        NavigationAdmin.Categories,
+//         NavigationAdmin.Orders,
         NavigationAdmin.Customers,
         NavigationAdmin.Promotions,
         NavigationAdmin.Profile
@@ -108,10 +107,9 @@ fun MainRouteContainerAdmin(
                 AdminComplaintScreen()
             }
 
-            // Tab 4: Quản lý Danh mục chung (Nhãn hiển thị UI: Thực đơn)
-            composable(NavigationAdmin.Categories.route) {
-                AdminCategoryScreen()
-            }
+//            composable(NavigationAdmin.Categories.route) {
+//                AdminCategoryScreen()
+//            }
 
             // Tab 5: Quản lý Khách hàng (Nhãn hiển thị UI: Cá nhân)
             composable(NavigationAdmin.Customers.route) {
