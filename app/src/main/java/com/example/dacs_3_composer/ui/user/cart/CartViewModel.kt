@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import com.example.dacs_3_composer.data.model.DishItem
 import com.example.dacs_3_composer.data.model.Order
 import com.example.dacs_3_composer.data.model.OrderItem
+import com.example.dacs_3_composer.data.model.OrderStatus
 import com.example.dacs_3_composer.data.model.Promotion
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
@@ -111,9 +112,10 @@ class CartViewModel : ViewModel() {
         totalDishPrice: Double,
         finalTotal: Double,
         appliedPromotionId: String?,
-        appliedPromotionTitle: String, // Nhận thêm Tên Voucher
-        promotionDiscount: Double,    // Nhận thêm Số tiền giảm giá
-        onSuccess: () -> Unit,
+        appliedPromotionTitle: String,
+        promotionDiscount: Double,
+        paymentMethod: String, // ✅ Nhận thêm phương thức thanh toán
+        onSuccess: (String) -> Unit,
         onFailure: (String) -> Unit
     ) {
         val uid = FirebaseAuth.getInstance().currentUser?.uid
@@ -135,12 +137,6 @@ class CartViewModel : ViewModel() {
             cartItems.firstOrNull()?.dish?.restaurantId ?: ""
         }
 
-        if (finalRestaurantId.isBlank()) {
-            Log.e("CartViewModel", "Đặt hàng thất bại: Không tìm thấy ID nhà hàng từ giỏ hàng!")
-            onFailure("Lỗi hệ thống: Không xác định được ID nhà hàng!")
-            return
-        }
-
         val db = FirebaseFirestore.getInstance()
         val orderId = db.collection("orders").document().id
 
@@ -155,10 +151,18 @@ class CartViewModel : ViewModel() {
 
         val currentTime = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
 
+        // Xác định trạng thái ban đầu dựa trên phương thức thanh toán
+        val initialStatus = if (paymentMethod == "ONLINE") {
+            OrderStatus.PENDING_PAYMENT.name
+        } else {
+            OrderStatus.WAITING_RESTAURANT.name // COD thì vào luôn hàng chờ nhà hàng
+        }
+
         val newOrder = Order(
             id = orderId,
             time = currentTime,
-            status = "PENDING",
+            status = initialStatus,
+            paymentMethod = paymentMethod, // ✅ Lưu phương thức thanh toán
             totalDishPrice = totalDishPrice,
             totalPrice = finalTotal,
             shippingFee = shippingFee,
@@ -200,7 +204,6 @@ class CartViewModel : ViewModel() {
                 onSuccess()
             }
             .addOnFailureListener { exception ->
-                Log.e("CartViewModel", "Lỗi đặt đơn hàng: ${exception.message}")
                 onFailure(exception.message ?: "Lỗi kết nối Firebase")
             }
     }
@@ -268,9 +271,7 @@ class CartViewModel : ViewModel() {
         }
     }
 
-    fun getTotalPrice(): Double {
-        return cartItems.sumOf { it.dish.price * it.quantity }
-    }
+    fun getTotalPrice(): Double = cartItems.sumOf { it.dish.price * it.quantity }
 
     fun clearCart() {
         cartItems.clear()

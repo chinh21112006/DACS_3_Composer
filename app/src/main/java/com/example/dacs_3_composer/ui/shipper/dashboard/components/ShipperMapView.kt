@@ -231,7 +231,6 @@ fun ShipperMapView(
                     val destinationMarker = mapView.overlays.firstOrNull { (it as? Marker)?.id == "destination" } as? Marker
                     val shipperMarker = mapView.overlays.firstOrNull { (it as? Marker)?.id == "shipper" } as? Marker
                     val routePolyline = mapView.overlays.firstOrNull { (it as? Polyline)?.id == "route" } as? Polyline
-
                     val isGoingToRestaurant = order.status == "ACCEPTED"
                     val destLat = if (isGoingToRestaurant) order.restaurantLat else order.customerLat
                     val destLng = if (isGoingToRestaurant) order.restaurantLng else order.customerLng
@@ -242,29 +241,22 @@ fun ShipperMapView(
                         title = if (isGoingToRestaurant) "Nhà hàng: ${order.restaurantName}" else "Khách hàng"
                     }
 
-                    // --- 🛠️ APPYLING SNAP-TO-ROAD LOGIC ---
 
-                    // 1. Get raw location (with GPS error)
                     val rawShipperPoint = if (order.id != "HEATING_MAP_PREVIEW" && order.id.isNotBlank()) {
                         firebaseRawShipperPoint ?: GeoPoint(deviceLocation?.get("lat") ?: 15.9733, deviceLocation?.get("lng") ?: 108.2517)
                     } else {
                         GeoPoint(deviceLocation?.get("lat") ?: 15.9733, deviceLocation?.get("lng") ?: 108.2517)
                     }
 
-                    // 2. If route exists from OSRM, recalculate raw point to snap on road
                     val shipperPointOnRoad = if (realRoutePoints.size >= 2) {
                         android.util.Log.d("SNAP", "Applying snap-to-road, route size: ${realRoutePoints.size}")
                         findClosestPointOnRoute(rawShipperPoint, realRoutePoints)
                     } else {
-                        // If no route, keep raw GPS point (deviation acceptable in this case)
                         android.util.Log.d("SNAP", "No route, raw GPS used")
                         rawShipperPoint
                     }
 
-                    // 3. Set marker position to point on road
                     shipperMarker?.position = shipperPointOnRoad
-
-                    // --- Update map UI ---
 
                     if (realRoutePoints.isNotEmpty()) {
                         routePolyline?.setPoints(realRoutePoints)

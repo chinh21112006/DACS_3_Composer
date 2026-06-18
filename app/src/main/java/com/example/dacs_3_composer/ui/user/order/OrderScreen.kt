@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dacs_3_composer.R
+import com.example.dacs_3_composer.data.model.OrderStatus
 import com.example.dacs_3_composer.data.model.Restaurant
 import com.example.dacs_3_composer.ui.user.order.components.EmptyOrderState
 import com.example.dacs_3_composer.ui.user.order.components.HistoryOrderItem
@@ -33,6 +34,7 @@ import java.util.Locale
 fun OrderScreen(
     suggestedRestaurants: List<Restaurant>,
     chuyenHienThiTrangChiTiet: (String) -> Unit,
+    onNavigateToPayment: (String, Double) -> Unit = { _, _ -> },
     orderViewModel: OrderViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -50,70 +52,38 @@ fun OrderScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
                 title = {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(end = 12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(end = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Đơn hàng",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF191C1D)
-                        )
-                        IconButton(onClick = { /* Tìm kiếm đơn hàng */ }) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Tìm kiếm",
-                                tint = Color(0xFF191C1D),
-                                modifier = Modifier.size(24.dp)
-                            )
+                        Text(text = "Đơn hàng", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF191C1D))
+                        IconButton(onClick = { }) {
+                            Icon(imageVector = Icons.Default.Search, contentDescription = "Tìm kiếm", tint = Color(0xFF191C1D), modifier = Modifier.size(24.dp))
                         }
                     }
                 }
             )
         }
     ) { paddingValues ->
-        Box(
-            modifier = modifier
-                .fillMaxSize()
-                .background(Color(0xFFF8F9FA))
-                .padding(paddingValues)
-        ) {
+        Box(modifier = modifier.fillMaxSize().background(Color(0xFFF8F9FA)).padding(paddingValues)) {
             Column(modifier = Modifier.fillMaxSize()) {
-                OrderTabBar(
-                    selectedTabIndex = selectedTabIndex,
-                    onTabSelected = { selectedTabIndex = it }
-                )
+                OrderTabBar(selectedTabIndex = selectedTabIndex, onTabSelected = { selectedTabIndex = it })
 
                 if (isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = Color(0xFF2159BC))
                     }
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
+                    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         when (selectedTabIndex) {
-                            0 -> { // 🎯 TAB 0: CHỜ XÁC NHẬN
-                                val pendingOrders = ongoingOrders.filter { it.status == "PENDING" }
+                            0 -> { 
+                                val pendingOrders = ongoingOrders.filter { 
+                                    it.status == OrderStatus.PENDING_PAYMENT.name || it.status == OrderStatus.WAITING_RESTAURANT.name || it.status == "PENDING"
+                                }
 
                                 if (pendingOrders.isEmpty()) {
                                     item { EmptyOrderState() }
                                 } else {
-                                    item {
-                                        Text(
-                                            text = "Đơn hàng chờ xác nhận (${pendingOrders.size})",
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF191C1D),
-                                            modifier = Modifier.padding(bottom = 8.dp)
-                                        )
-                                    }
-
                                     items(pendingOrders) { order ->
                                         val itemsSummaryText = order.items.joinToString(", ") { "${it.quantity}x ${it.name}" }
                                         val imgUrl = orderViewModel.restaurantImages[order.restaurantId] ?: ""
@@ -125,32 +95,36 @@ fun OrderScreen(
                                             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                                         ) {
                                             Column(modifier = Modifier.padding(16.dp)) {
+                                                val statusMsg = if (order.status == OrderStatus.PENDING_PAYMENT.name) "Đang chờ thanh toán" else "Quán đang xem đơn hàng..."
                                                 OngoingOrderItem(
                                                     restaurantName = order.restaurantName,
-                                                    statusText = "Quán đang xem đơn hàng...",
+                                                    statusText = statusMsg,
                                                     estimatedTime = "Mã đơn: ..${order.id.takeLast(6)}",
                                                     itemsSummary = itemsSummaryText,
                                                     restaurantImageUrl = imgUrl,
+                                                    paymentMethod = order.paymentMethod, // ✅ Truyền thêm phương thức thanh toán
                                                     chuyenTheoDoiDonHang = { chuyenHienThiTrangChiTiet(order.id) }
                                                 )
 
                                                 Spacer(modifier = Modifier.height(12.dp))
 
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                ) {
+                                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    if (order.status == OrderStatus.PENDING_PAYMENT.name) {
+                                                        Button(
+                                                            onClick = { onNavigateToPayment(order.id, order.totalPrice) },
+                                                            shape = RoundedCornerShape(14.dp),
+                                                            modifier = Modifier.weight(1f),
+                                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE67E22))
+                                                        ) {
+                                                            Text(text = "Thanh toán ngay", fontWeight = FontWeight.Bold, color = Color.White)
+                                                        }
+                                                    }
+                                                    
                                                     OutlinedButton(
                                                         onClick = {
-                                                            orderViewModel.cancelOrder(
-                                                                orderId = order.id,
-                                                                onSuccess = {
-                                                                    Toast.makeText(context, "Đã hủy đơn hàng!", Toast.LENGTH_SHORT).show()
-                                                                },
-                                                                onFailure = { errorMessage ->
-                                                                    Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
-                                                                }
-                                                            )
+                                                            orderViewModel.cancelOrder(order.id, {
+                                                                Toast.makeText(context, "Đã hủy đơn hàng!", Toast.LENGTH_SHORT).show()
+                                                            }, { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() })
                                                         },
                                                         shape = RoundedCornerShape(14.dp),
                                                         modifier = Modifier.weight(1f),
@@ -159,57 +133,27 @@ fun OrderScreen(
                                                     ) {
                                                         Text(text = "Hủy đơn", fontWeight = FontWeight.SemiBold)
                                                     }
-
-                                                    Button(
-                                                        onClick = { chuyenHienThiTrangChiTiet(order.id) },
-                                                        shape = RoundedCornerShape(14.dp),
-                                                        modifier = Modifier.weight(1.2f),
-                                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2159BC))
-                                                    ) {
-                                                        Text(text = "Theo dõi đơn", fontWeight = FontWeight.Bold, color = Color.White)
-                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }
-
-                            1 -> { // 🎯 TAB 1: ĐANG ĐẾN (Đã sửa bộ lọc chứa PROCESSING, ACCEPTED, SHIPPING)
-                                val activeDeliveryOrders = ongoingOrders.filter {
-                                    it.status == "PROCESSING" || it.status == "ACCEPTED" || it.status == "SHIPPING"
+                            1 -> { 
+                                val activeOrders = ongoingOrders.filter { 
+                                    it.status == OrderStatus.PROCESSING.name || it.status == OrderStatus.ACCEPTED.name || it.status == OrderStatus.SHIPPING.name
                                 }
-
-                                if (activeDeliveryOrders.isEmpty()) {
+                                if (activeOrders.isEmpty()) {
                                     item {
-                                        Box(modifier = Modifier.fillParentMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                            Text(text = "Không có đơn hàng nào đang đến.", color = Color.Gray)
+                                        Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                                            Text("Không có đơn hàng nào đang đến.", color = Color.Gray)
                                         }
                                     }
                                 } else {
-                                    item {
-                                        Text(
-                                            text = "Đơn hàng đang đến (${activeDeliveryOrders.size})",
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF191C1D),
-                                            modifier = Modifier.padding(bottom = 8.dp)
-                                        )
-                                    }
-
-                                    items(activeDeliveryOrders) { order ->
-                                        val itemsSummary = order.items.joinToString(", ") { "${it.quantity}x ${it.name}" }
+                                    items(activeOrders) { order ->
+                                        val itemsSummaryText = order.items.joinToString(", ") { "${it.quantity}x ${it.name}" }
                                         val imgUrl = orderViewModel.restaurantImages[order.restaurantId] ?: ""
-                                        val dinhDangGia = String.format(Locale("vi", "VN"), "%,.0f đ", order.totalPrice)
-
-                                        // Đổi văn bản trạng thái hiển thị linh hoạt dựa trên status Firebase
-                                        val currentStatusText = when (order.status) {
-                                            "PROCESSING" -> " - Đang nấu món"
-                                            "ACCEPTED" -> " - Chờ shipper lấy hàng"
-                                            "SHIPPING" -> " - Đang giao hàng"
-                                            else -> ""
-                                        }
-
+                                        
                                         Card(
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(20.dp),
@@ -217,71 +161,46 @@ fun OrderScreen(
                                             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                                         ) {
                                             Column(modifier = Modifier.padding(16.dp)) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    coil.compose.AsyncImage(
-                                                        model = imgUrl.ifBlank { R.drawable.banner1 },
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(60.dp).clip(RoundedCornerShape(12.dp)),
-                                                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                                                    )
-
-                                                    Spacer(modifier = Modifier.width(12.dp))
-                                                    Column(modifier = Modifier.weight(1f)) {
-                                                        Text(
-                                                            text = order.restaurantName + currentStatusText,
-                                                            fontWeight = FontWeight.Bold,
-                                                            fontSize = 16.sp,
-                                                            color = Color(0xFF191C1D)
-                                                        )
-                                                        Text(text = order.time, fontSize = 12.sp, color = Color(0xFF727785))
-                                                        Text(text = itemsSummary, fontSize = 13.sp, color = Color(0xFF191C1D), modifier = Modifier.padding(top = 4.dp))
-                                                    }
-                                                    Text(text = dinhDangGia, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF2159BC))
+                                                val statusMsg = when(order.status) {
+                                                    OrderStatus.PROCESSING.name -> "Đang nấu món"
+                                                    OrderStatus.ACCEPTED.name -> "Chờ tài xế lấy hàng"
+                                                    OrderStatus.SHIPPING.name -> "Đang giao đến bạn"
+                                                    else -> ""
                                                 }
-
-                                                Spacer(modifier = Modifier.height(16.dp))
-
+                                                OngoingOrderItem(
+                                                    restaurantName = order.restaurantName,
+                                                    statusText = statusMsg,
+                                                    estimatedTime = "Mã đơn: ..${order.id.takeLast(6)}",
+                                                    itemsSummary = itemsSummaryText,
+                                                    restaurantImageUrl = imgUrl,
+                                                    paymentMethod = order.paymentMethod,
+                                                    chuyenTheoDoiDonHang = { chuyenHienThiTrangChiTiet(order.id) }
+                                                )
+                                                Spacer(modifier = Modifier.height(12.dp))
                                                 Button(
                                                     onClick = { chuyenHienThiTrangChiTiet(order.id) },
-                                                    shape = RoundedCornerShape(16.dp),
+                                                    shape = RoundedCornerShape(14.dp),
                                                     modifier = Modifier.fillMaxWidth(),
                                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2159BC))
                                                 ) {
-                                                    Text(text = "Xem trạng thái đơn hàng", fontWeight = FontWeight.Bold, color = Color.White)
+                                                    Text(text = "Theo dõi đơn", fontWeight = FontWeight.Bold, color = Color.White)
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }
-
-                            2 -> { // 🎯 TAB 2: LỊCH SỬ ĐƠN HÀNG (Chứa COMPLETED và CANCELLED)
+                            2 -> { 
                                 if (historyOrders.isEmpty()) {
                                     item {
-                                        Box(modifier = Modifier.fillParentMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                            Text(text = "Bạn chưa có lịch sử đơn hàng nào.", color = Color.Gray)
+                                        Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                                            Text("Chưa có lịch sử đơn hàng.", color = Color.Gray)
                                         }
                                     }
                                 } else {
-                                    item {
-                                        Text(
-                                            text = "Đơn hàng gần đây (${historyOrders.size})",
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF191C1D),
-                                            modifier = Modifier.padding(bottom = 8.dp)
-                                        )
-                                    }
-
                                     items(historyOrders) { order ->
                                         val historyItemsSummary = order.items.joinToString(", ") { "${it.quantity}x ${it.name}" }
-
-                                        // Hiển thị nhãn phân biệt Đã hủy hoặc Hoàn thành sạch sẽ
-                                        val displayStatus = when(order.status) {
-                                            "CANCELLED" -> " - Đã hủy"
-                                            "COMPLETED" -> " - Đã hoàn thành"
-                                            else -> ""
-                                        }
+                                        val displayStatus = if (order.status == "CANCELLED") " - Đã hủy" else " - Hoàn thành"
                                         val historyImgUrl = orderViewModel.restaurantImages[order.restaurantId] ?: ""
                                         val dinhDangGia = String.format(Locale("vi", "VN"), "%,.0f đ", order.totalPrice)
 
@@ -291,7 +210,7 @@ fun OrderScreen(
                                             price = dinhDangGia,
                                             itemsSummary = historyItemsSummary,
                                             restaurantImageUrl = historyImgUrl,
-                                            onReorderClick = { /* Xử lý mua lại nhanh nếu cần */ },
+                                            onReorderClick = { /* Logic mua lại */ },
                                             onDetailClick = { chuyenHienThiTrangChiTiet(order.id) }
                                         )
                                     }

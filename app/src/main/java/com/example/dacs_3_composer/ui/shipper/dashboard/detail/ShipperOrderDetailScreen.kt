@@ -31,7 +31,6 @@ fun ShipperOrderDetailScreen(
     val firestore = FirebaseFirestore.getInstance()
     val auth = FirebaseAuth.getInstance()
 
-    // Lấy UID của Shipper đang đăng nhập hiện tại
     val currentShipperId = remember { auth.currentUser?.uid ?: "" }
 
     var orderState by remember { mutableStateOf<Order?>(null) }
@@ -50,11 +49,10 @@ fun ShipperOrderDetailScreen(
                 val id = snapshot.id
                 val time = snapshot.getString("time") ?: ""
                 val status = snapshot.getString("status") ?: "PENDING"
+                val paymentMethod = snapshot.getString("paymentMethod") ?: "CASH" // ✅ Đọc phương thức thanh toán
 
                 val totalDishPrice = snapshot.getDouble("totalDishPrice") ?: (snapshot.getLong("totalDishPrice")?.toDouble() ?: 0.0)
                 val totalPrice = snapshot.getDouble("totalPrice") ?: (snapshot.getLong("totalPrice")?.toDouble() ?: 0.0)
-
-                // 🌟 ĐÃ BỔ SUNG: Đọc trường shippingFee từ Firestore (Nếu đơn cũ không có tự động nhận 20,000đ)
                 val shippingFee = snapshot.getDouble("shippingFee") ?: (snapshot.getLong("shippingFee")?.toDouble() ?: 20000.0)
 
                 val userId = snapshot.getString("userId") ?: ""
@@ -78,8 +76,9 @@ fun ShipperOrderDetailScreen(
 
                 orderState = Order(
                     id = id, time = time, status = status,
+                    paymentMethod = paymentMethod, // ✅ Gán vào Model
                     totalDishPrice = totalDishPrice,
-                    shippingFee = shippingFee, // 🌟 ĐÃ CẬP NHẬT: Gán giá trị thực từ DB vào Model
+                    shippingFee = shippingFee,
                     totalPrice = totalPrice,
                     userId = userId, customerName = customerName,
                     customerPhone = customerPhone, customerAddress = customerAddress,
@@ -103,7 +102,6 @@ fun ShipperOrderDetailScreen(
         Scaffold(
             topBar = { OrderDetailTopBar(onBackClick = onBackClick) },
             bottomBar = {
-                // Chỉ xử lý hiển thị thanh điều khiển nếu đơn chưa hoàn thành hoặc chưa bị hủy
                 if (order.status != OrderStatus.COMPLETED.name && order.status != OrderStatus.CANCELLED.name) {
                     Box(
                         modifier = Modifier
@@ -111,13 +109,12 @@ fun ShipperOrderDetailScreen(
                             .background(Color.White)
                             .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
-                        // KỊCH BẢN 1: Đơn hàng chưa có ai nhận (shipperId trống) -> Hiện nút "NHẬN ĐƠN"
                         if (order.shipperId.isBlank()) {
                             Button(
                                 onClick = {
                                     isUpdating = true
                                     firestore.collection("orders").document(orderId)
-                                        .update("shipperId", currentShipperId) // Đóng dấu chủ quyền cho tài xế
+                                        .update("shipperId", currentShipperId)
                                         .addOnSuccessListener { isUpdating = false }
                                         .addOnFailureListener { isUpdating = false }
                                 },
@@ -131,20 +128,17 @@ fun ShipperOrderDetailScreen(
                                 Text(text = "Nhận giao đơn hàng này", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                             }
                         }
-
-                        // KỊCH BẢN 2: Đơn hàng đã được nhận bởi chính Shipper này
                         else if (order.shipperId == currentShipperId) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Nút "Đã lấy hàng": Chỉ sáng lên khi trạng thái đơn là ACCEPTED (Quán làm xong, đang đợi shipper lấy)
                                 Button(
                                     onClick = {
                                         isUpdating = true
                                         firestore.collection("orders").document(orderId)
-                                            .update("status", OrderStatus.SHIPPING.name) // Chuyển nấc sang ĐANG GIAO
+                                            .update("status", OrderStatus.SHIPPING.name)
                                             .addOnSuccessListener { isUpdating = false }
                                             .addOnFailureListener { isUpdating = false }
                                     },
@@ -168,7 +162,6 @@ fun ShipperOrderDetailScreen(
                                     )
                                 }
 
-                                // Nút "Xác nhận giao xong": Chỉ sáng lên sau khi tài xế đã nhấn nút "Đã lấy hàng" (status sang SHIPPING)
                                 Button(
                                     onClick = {
                                         isUpdating = true
@@ -176,7 +169,7 @@ fun ShipperOrderDetailScreen(
                                             .update("status", OrderStatus.COMPLETED.name)
                                             .addOnSuccessListener {
                                                 isUpdating = false
-                                                onBackClick() // Hoàn thành xong tự động trả về màn hình danh sách đơn
+                                                onBackClick()
                                             }
                                             .addOnFailureListener { isUpdating = false }
                                     },
@@ -196,8 +189,6 @@ fun ShipperOrderDetailScreen(
                                 }
                             }
                         }
-
-                        // KỊCH BẢN 3: Đơn hàng đã bị một Shipper khác nhanh tay nhận trước
                         else {
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
@@ -240,12 +231,12 @@ fun ShipperOrderDetailScreen(
                             restaurantName = order.restaurantName
                         )
 
-                        // 🌟 ĐÃ CẬP NHẬT: Truyền thêm thuộc tính order.shippingFee vào component tính hóa đơn
                         ItemsBillCard(
                             orderId = order.id,
                             items = order.items,
                             totalPrice = order.totalPrice,
-                            shippingFee = order.shippingFee // Bạn nhớ mở component ItemsBillCard ra để nhận thêm biến Double này hiển thị lên nhé!
+                            shippingFee = order.shippingFee,
+                            paymentMethod = order.paymentMethod // ✅ Truyền thêm phương thức thanh toán
                         )
                         CustomerNoteBox(noteText = "Vui lòng gọi điện trước khi giao hoặc để lại quầy lễ tân nếu không liên lạc được.")
                     }

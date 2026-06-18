@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.dacs_3_composer.data.model.Order
+import java.util.Locale
 
 @Composable
 fun ActiveDeliveryCard(
@@ -39,29 +40,49 @@ fun ActiveDeliveryCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "#ORD-${order.id.takeLast(4).uppercase()}",
+                    text = "#ORD-${order.id.takeLast(4).uppercase(Locale.getDefault())}",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF2563EB)
                 )
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF2563EB))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "Đang giao",
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // ✅ Hiển thị nhãn thanh toán
+                    val methodLabel = if (order.paymentMethod == "ONLINE") "ĐÃ TRẢ" else "COD"
+                    val methodColor = if (order.paymentMethod == "ONLINE") Color(0xFF2ECC71) else Color(0xFFEF4444)
+                    
+                    Surface(
+                        color = methodColor.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = methodLabel,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = methodColor
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF2563EB))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "Đang giao",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Hàng 2: Tên quán & Giá tiền ship
+            // Hàng 2: Tên quán & Giá tiền cần thu/tiền ship
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -74,23 +95,28 @@ fun ActiveDeliveryCard(
                     color = Color(0xFF1F2937),
                     modifier = Modifier.weight(1f)
                 )
-                Text(
-                    text = "${String.format("%,.0f", order.totalPrice)}đ",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E3A8A)
-                )
+                
+                Column(horizontalAlignment = Alignment.End) {
+                    val priceLabel = if (order.paymentMethod == "ONLINE") "Đã thanh toán" else "Cần thu hộ"
+                    Text(text = priceLabel, fontSize = 10.sp, color = Color.Gray)
+                    Text(
+                        text = "${String.format(Locale.getDefault(), "%,.0f", order.totalPrice)}đ",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (order.paymentMethod == "ONLINE") Color(0xFF2ECC71) else Color(0xFF1E3A8A)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Điểm nhận hàng
+            // Điểm nhận hàng (Giữ nguyên logic cũ hoặc lấy từ lat/lng nếu có địa chỉ quán)
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                 Icon(Icons.Default.LocationOn, null, tint = Color(0xFF3B82F6), modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(text = "Điểm nhận", fontSize = 11.sp, color = Color.Gray)
-                    Text(text = "123 Đường Lê Lợi, Quận 1, TP.HCM", fontSize = 13.sp, color = Color(0xFF374151)) // Thay bằng địa chỉ thực tế từ model nếu có
+                    Text(text = "Nhận tại: ${order.restaurantName}", fontSize = 13.sp, color = Color(0xFF374151))
                 }
             }
 
@@ -110,16 +136,20 @@ fun ActiveDeliveryCard(
             HorizontalDivider(color = Color(0xFFF3F4F6))
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Hàng đáy: Số km & Nút bấm xem chi tiết
+            // Hàng đáy: Nút bấm xem chi tiết
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Route, null, tint = Color.Gray, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = "3.2 km", fontSize = 13.sp, color = Color.Gray)
+                Column {
+                    Text(text = "Thu nhập từ đơn này", fontSize = 11.sp, color = Color.Gray)
+                    Text(
+                        text = "+${String.format(Locale.getDefault(), "%,.0f", order.shippingFee)}đ",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2563EB)
+                    )
                 }
 
                 Button(

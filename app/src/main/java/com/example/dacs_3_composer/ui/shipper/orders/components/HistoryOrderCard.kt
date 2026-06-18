@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.dacs_3_composer.data.model.Order
+import java.util.Locale
 
 @Composable
 fun HistoryOrderCard(
@@ -38,31 +39,48 @@ fun HistoryOrderCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "#ORD-${order.id.takeLast(4).uppercase()}",
+                    text = "#ORD-${order.id.takeLast(4).uppercase(Locale.getDefault())}",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Gray
                 )
 
-                // Badge phân biệt Đã giao thành công hay Đã hủy đơn
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(if (isCancelled) Color(0xFFFFE4E6) else Color(0xFFDCFCE7))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = if (isCancelled) "Đã hủy" else "Thành công",
-                        color = if (isCancelled) Color(0xFFE11D48) else Color(0xFF16A34A),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // ✅ HIỂN THỊ PHƯƠNG THỨC THANH TOÁN TRONG LỊCH SỬ
+                    val methodLabel = if (order.paymentMethod == "ONLINE") "ONLINE" else "CASH"
+                    val methodColor = if (order.paymentMethod == "ONLINE") Color(0xFF2ECC71) else Color(0xFF727785)
+                    
+                    Surface(
+                        color = methodColor.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = methodLabel,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = methodColor
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isCancelled) Color(0xFFFFE4E6) else Color(0xFFDCFCE7))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = if (isCancelled) "Đã hủy" else "Thành công",
+                            color = if (isCancelled) Color(0xFFE11D48) else Color(0xFF16A34A),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Tên Quán và Giá Tiền kiếm được
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -76,7 +94,7 @@ fun HistoryOrderCard(
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = "${String.format("%,.0f", order.shippingFee)}đ", // 🌟 ĐÃ SỬA: Đổi sang shippingFee để hiển thị thu nhập thực tế của shipper
+                    text = "${String.format(Locale.getDefault(), "%,.0f", order.shippingFee)}đ",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (isCancelled) Color.Gray else Color(0xFF111827)
@@ -85,7 +103,6 @@ fun HistoryOrderCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Địa chỉ giao
             Text(
                 text = "📍 Khách: ${order.customerAddress}",
                 fontSize = 12.sp,
