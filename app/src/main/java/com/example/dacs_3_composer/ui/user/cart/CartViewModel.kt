@@ -201,10 +201,7 @@ class CartViewModel : ViewModel() {
                         }
                 }
                 clearCart()
-                onSuccess()
-            }
-            .addOnFailureListener { exception ->
-                onFailure(exception.message ?: "Lỗi kết nối Firebase")
+                onSuccess(orderId) //  Truyền orderId vào đây để sửa lỗi
             }
     }
 

@@ -16,7 +16,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.dacs_3_composer.ui.admin.analytics.AdminAnalyticsScreen
-import com.example.dacs_3_composer.ui.admin.category.AdminCategoryScreen
 import com.example.dacs_3_composer.ui.admin.complaint.AdminComplaintScreen
 import com.example.dacs_3_composer.ui.admin.customer.AdminCustomerScreen
 import com.example.dacs_3_composer.ui.admin.profile.AdminProfileScreen
@@ -35,10 +34,7 @@ fun MainRouteContainerAdmin(
     val navigationItems = listOf(
         NavigationAdmin.Overview,
         NavigationAdmin.Orders,
-        NavigationAdmin.Payments, // ✅ Thêm tab Giao dịch
-        NavigationAdmin.Categories,
-        NavigationAdmin.Customers,
-        NavigationAdmin.Categories,
+        NavigationAdmin.Payments,
         NavigationAdmin.Customers,
         NavigationAdmin.Promotions,
         NavigationAdmin.Profile
@@ -115,9 +111,9 @@ fun MainRouteContainerAdmin(
                 AdminPaymentScreen()
             }
 
-            composable(NavigationAdmin.Categories.route) {
-                AdminCategoryScreen()
-            }
+//            composable(NavigationAdmin.Categories.route) {
+//                AdminCategoryScreen()
+//            }
 
             composable(NavigationAdmin.Customers.route) {
                 AdminCustomerScreen()

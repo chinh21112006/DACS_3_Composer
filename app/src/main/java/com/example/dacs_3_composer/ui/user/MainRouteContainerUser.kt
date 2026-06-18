@@ -67,11 +67,11 @@ fun MainRouteContainerUser(
     // ✅ CẤU HÌNH TỐI ƯU CHO KẾT NỐI LOCAL
     val okHttpClient = remember {
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY 
+            level = HttpLoggingInterceptor.Level.BODY
         }
-        
+
         OkHttpClient.Builder()
-            .protocols(listOf(Protocol.HTTP_1_1)) 
+            .protocols(listOf(Protocol.HTTP_1_1))
             .proxy(Proxy.NO_PROXY)
             .retryOnConnectionFailure(true)
             .connectTimeout(60, TimeUnit.SECONDS)
@@ -83,10 +83,10 @@ fun MainRouteContainerUser(
 
     // ✅ KHÔNG DÙNG REMEMBER ĐỂ TRÁNH CACHED GIÁ TRỊ CŨ 8080
     val retrofit = Retrofit.Builder()
-            .baseUrl("http://127.0.0.1:8888/") 
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
+        .baseUrl("http://127.0.0.1:8888/")
+        .client(okHttpClient)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
 
     val paymentApiService = retrofit.create(PaymentApiService::class.java)
     val paymentRepository = PaymentRepository(paymentApiService)
@@ -132,7 +132,7 @@ fun MainRouteContainerUser(
                     )
                 }
                 composable(
-                    route = "order_tracking/{orderId}?status={status}", 
+                    route = "order_tracking/{orderId}?status={status}",
                     arguments = listOf(
                         navArgument("orderId") { type = NavType.StringType },
                         navArgument("status") { type = NavType.StringType; nullable = true }
@@ -150,8 +150,8 @@ fun MainRouteContainerUser(
                     }
 
                     OrderDetailScreen(
-                        orderId = orderId, 
-                        orderViewModel = orderViewModel, 
+                        orderId = orderId,
+                        orderViewModel = orderViewModel,
                         onBackClick = { navController.popBackStack() },
                         onNavigateToPayment = { id, amount -> navController.navigate("payment/$id/$amount") }
                     )

@@ -1,5 +1,6 @@
 package com.example.dacs_3_composer.ui.user.order
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,12 +27,14 @@ import com.example.dacs_3_composer.data.model.Order
 import com.example.dacs_3_composer.data.model.OrderStatus
 import java.util.Locale
 
+@SuppressLint("NonObservableLocale")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderDetailScreen(
     orderId: String,
     orderViewModel: OrderViewModel,
     onBackClick: () -> Unit,
+    onNavigateToPayment: (String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Kích hoạt lắng nghe dữ liệu thời gian thực của đơn hàng này từ Firebase
@@ -63,7 +66,7 @@ fun OrderDetailScreen(
                     color = Color.White
                 ) {
                     Button(
-                        onClick = { onNavigateToPayment(order.id, order.totalPrice) },
+                        onClick = { onNavigateToPayment(order.id, order.totalPrice.toString()) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp)

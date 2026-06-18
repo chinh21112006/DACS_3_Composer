@@ -106,10 +106,10 @@ fun AdminPromotionScreen(
                     }
                 }
 
-                // 1. Flash Sale Live Metrics Card
-                item {
-                    FeaturedPromotionCard()
-                }
+//                // 1. Flash Sale Live Metrics Card
+//                item {
+//                    FeaturedPromotionCard()
+//                }
 
                 // 2. Banner Event Card
                 item {
