@@ -121,6 +121,9 @@ fun CartScreen(
         locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
         cartViewModel.fetchPromotionsFromFirebase()
 
+        // Tải danh sách Khuyến mãi thực tế từ Firebase Firestore
+        cartViewModel.fetchPromotionsFromFirebase()
+
         val uid = FirebaseAuth.getInstance().currentUser?.uid
         if (uid != null) {
             FirebaseFirestore.getInstance().collection("users").document(uid).get()
@@ -160,15 +163,17 @@ fun CartScreen(
     // ✅ PHƯƠNG THỨC THANH TOÁN
     var paymentMethod by remember { mutableStateOf("CASH") } // "CASH" hoặc "ONLINE"
 
+    // Danh sách Khuyến mãi và trạng thái chọn mã từ Firebase
     val listPromotionsFromFirebase = cartViewModel.availablePromotions
     var selectedPromotion by remember { mutableStateOf<Promotion?>(null) }
     var showVoucherBottomSheet by remember { mutableStateOf(false) }
     val voucherSheetState = rememberModalBottomSheetState()
 
+    // Logic tính toán số tiền khuyến mãi dựa trên cấu trúc bảng dữ liệu mới
     val discount = remember(selectedPromotion, totalDishPrice) {
         if (selectedPromotion != null) {
             if (totalDishPrice < selectedPromotion!!.minOrderValue) {
-                0.0
+                0.0 // Tổng tiền không đạt mức chi tiêu tối thiểu của mã
             } else {
                 when (selectedPromotion!!.type) {
                     "percentage" -> {
@@ -373,7 +378,7 @@ fun CartScreen(
                         }
                     }
 
-                    // Chọn mã khuyến mãi
+                    // KHU VỰC CHỌN MÃ KHUYẾN MÃI (PROMOTION)
                     item {
                         Card(modifier = Modifier.fillMaxWidth().clickable { showVoucherBottomSheet = true }, colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
                             Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {

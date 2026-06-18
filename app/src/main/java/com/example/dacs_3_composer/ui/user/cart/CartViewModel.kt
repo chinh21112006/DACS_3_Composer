@@ -29,20 +29,26 @@ class CartViewModel : ViewModel() {
     var currentRestaurantId: String = ""
     var currentRestaurantName: String = ""
 
+    // Danh sách khuyến mãi thực tế lấy từ Firebase Firestore
     var availablePromotions = mutableStateListOf<Promotion>()
         private set
 
+    /**
+     * Tải danh sách Khuyến mãi (Promotions) từ Firestore về và lọc điều kiện thời gian/lượt dùng an toàn
+     */
     fun fetchPromotionsFromFirebase() {
         val db = FirebaseFirestore.getInstance()
         db.collection("promotions")
-            .whereEqualTo("status", "active")
+            .whereEqualTo("status", "active") // Chỉ lấy các mã đang ở trạng thái active
             .get()
             .addOnSuccessListener { documents ->
+                Log.d("CartViewModel", "Firebase trả về số lượng tài liệu gốc: ${documents.size()}")
                 availablePromotions.clear()
                 val ngayGioHienTai = Timestamp.now()
 
                 for (document in documents) {
                     try {
+                        // Ép kiểu thủ công từng trường để tránh lỗi đúc Object (toObject) từ Firebase
                         val id = document.id
                         val code = document.getString("code") ?: ""
                         val type = document.getString("type") ?: "percentage"
@@ -60,6 +66,7 @@ class CartViewModel : ViewModel() {
                         val startDate = document.getTimestamp("startDate")
                         val endDate = document.getTimestamp("endDate")
 
+                        // Khởi tạo Object Promotion
                         val promo = Promotion(
                             id = id, code = code, type = type, value = value,
                             maxDiscount = maxDiscount, minOrderValue = minOrderValue,
@@ -68,9 +75,13 @@ class CartViewModel : ViewModel() {
                             description = description, title = title, status = status
                         )
 
+                        // Kiểm tra điều kiện thời gian & lượt dùng
                         val đãBắtĐầu = promo.startDate?.let { ngayGioHienTai >= it } ?: true
                         val chưaHếtHạn = promo.endDate?.let { ngayGioHienTai <= it } ?: true
                         val cònLượtDùng = if (promo.usageLimit > 0) promo.usageCount < promo.usageLimit else true
+
+                        // 🔴 SỬA LẠI DÒNG NÀY TRONG CARTVIEWMODEL.KT:
+                        Log.d("CartViewModel", "Mã: ${promo.code} -> Bắt đầu: $đãBắtĐầu, Chưa hết hạn: $chưaHếtHạn, Còn lượt: $cònLượtDùng")
 
                         if (đãBắtĐầu && chưaHếtHạn && cònLượtDùng) {
                             availablePromotions.add(promo)
@@ -79,9 +90,16 @@ class CartViewModel : ViewModel() {
                         Log.e("CartViewModel", "Lỗi parse tài liệu ${document.id}: ${e.message}")
                     }
                 }
+                Log.d("CartViewModel", "Tổng số mã hợp lệ hiển thị lên UI: ${availablePromotions.size}")
+            }
+            .addOnFailureListener { e ->
+                Log.e("CartViewModel", "Lỗi tải dữ liệu Khuyến mãi: ${e.message}")
             }
     }
 
+    /**
+     * Xử lý đặt đơn hàng và tự động trừ lượt sử dụng mã khuyến mãi trên hệ thống
+     */
     fun placeOrder(
         customerName: String,
         customerPhone: String,
@@ -148,9 +166,12 @@ class CartViewModel : ViewModel() {
             totalDishPrice = totalDishPrice,
             totalPrice = finalTotal,
             shippingFee = shippingFee,
+
+            // LƯU ĐẦY ĐỦ BỘ BA THÔNG TIN KHUYẾN MÃI VÀO ĐƠN HÀNG
             appliedPromotionId = appliedPromotionId,
             appliedPromotionTitle = appliedPromotionTitle,
             promotionDiscount = promotionDiscount,
+
             userId = uid,
             customerName = customerName,
             customerPhone = customerPhone,
@@ -159,17 +180,28 @@ class CartViewModel : ViewModel() {
             customerLng = customerLng,
             restaurantId = finalRestaurantId,
             restaurantName = restaurantName.ifBlank { this.currentRestaurantName }.ifBlank { "Nhà hàng đối tác" },
+            restaurantLat = null,
+            restaurantLng = null,
+            shipperId = "",
             items = orderItemsList
         )
 
         db.collection("orders").document(orderId)
             .set(newOrder)
             .addOnSuccessListener {
+                // Tăng số lần sử dụng mã (usageCount) lên +1 ngay trên Database Firestore
                 if (!appliedPromotionId.isNullOrBlank()) {
                     db.collection("promotions").document(appliedPromotionId)
                         .update("usageCount", FieldValue.increment(1))
+                        .addOnSuccessListener {
+                            Log.d("CartViewModel", "Đã cập nhật số lần sử dụng của mã: $appliedPromotionId")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("CartViewModel", "Lỗi cập nhật số lượng mã: ${e.message}")
+                        }
                 }
-                onSuccess(orderId)
+                clearCart()
+                onSuccess()
             }
             .addOnFailureListener { exception ->
                 onFailure(exception.message ?: "Lỗi kết nối Firebase")
@@ -189,7 +221,14 @@ class CartViewModel : ViewModel() {
         }
     }
 
-    fun updateDeliveryInfo(newName: String, newPhone: String, newAddress: String, newAddressDetail: String, lat: Double, lng: Double) {
+    fun updateDeliveryInfo(
+        newName: String,
+        newPhone: String,
+        newAddress: String,
+        newAddressDetail: String,
+        lat: Double,
+        lng: Double
+    ) {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
         val db = FirebaseFirestore.getInstance()
 
@@ -204,8 +243,16 @@ class CartViewModel : ViewModel() {
 
         db.collection("users").document(uid).update(updates)
             .addOnSuccessListener {
+                val addressMap = mapOf(
+                    "name" to newName,
+                    "phone" to newPhone,
+                    "address" to newAddress,
+                    "addressDetail" to newAddressDetail,
+                    "latitude" to lat,
+                    "longitude" to lng
+                )
                 db.collection("users").document(uid)
-                    .update("savedAddresses", FieldValue.arrayUnion(updates))
+                    .update("savedAddresses", FieldValue.arrayUnion(addressMap))
             }
     }
 

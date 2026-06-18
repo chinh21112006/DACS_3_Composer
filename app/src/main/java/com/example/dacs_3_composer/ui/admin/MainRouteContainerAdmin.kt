@@ -21,6 +21,8 @@ import com.example.dacs_3_composer.ui.admin.complaint.AdminComplaintScreen
 import com.example.dacs_3_composer.ui.admin.customer.AdminCustomerScreen
 import com.example.dacs_3_composer.ui.admin.profile.AdminProfileScreen
 import com.example.dacs_3_composer.ui.admin.payments.AdminPaymentScreen
+import com.example.dacs_3_composer.ui.admin.settings.AdminPromotionScreen
+import com.example.dacs_3_composer.ui.admin.settings.AdminPromotionViewModel
 
 @Composable
 fun MainRouteContainerAdmin(
@@ -36,6 +38,9 @@ fun MainRouteContainerAdmin(
         NavigationAdmin.Payments, // ✅ Thêm tab Giao dịch
         NavigationAdmin.Categories,
         NavigationAdmin.Customers,
+        NavigationAdmin.Categories,
+        NavigationAdmin.Customers,
+        NavigationAdmin.Promotions,
         NavigationAdmin.Profile
     )
 
@@ -124,6 +129,23 @@ fun MainRouteContainerAdmin(
                     onNavigateToNotification = { },
                     onNavigateToSupport = { },
                     onLogoutCallbackk = (onLogoutCallback)
+                )
+            }
+            composable(NavigationAdmin.Promotions.route) {
+                // Khởi tạo ViewModel cho màn hình Voucher Admin
+                val promotionViewModel: AdminPromotionViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+
+                AdminPromotionScreen(
+                    viewModel = promotionViewModel,
+                    onBackClick = {
+                        // Khi nhấn nút Back tại top bar, quay về màn hình Overview mặc định của Admin
+                        navController.navigate(NavigationAdmin.Overview.route) {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
