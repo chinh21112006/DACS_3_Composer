@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.ViewModel
 import com.example.dacs_3_composer.data.model.Order
+import com.example.dacs_3_composer.data.model.OrderStatus
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,15 +49,15 @@ class OrderViewModel : ViewModel() {
                 if (snapshot != null) {
                     val allOrders = snapshot.toObjects(Order::class.java)
 
-                    // 🎯 ĐÃ CẬP NHẬT: Gom tất cả trạng thái của đơn đang xử lý vào ongoing
                     val ongoing = allOrders.filter {
+                        it.status == OrderStatus.PENDING_PAYMENT.name ||
+                        it.status == OrderStatus.PENDING.name ||
                         it.status == "PENDING" ||
-                                it.status == "PROCESSING" ||
-                                it.status == "ACCEPTED" ||
-                                it.status == "SHIPPING"
+                        it.status == "PROCESSING" ||
+                        it.status == "ACCEPTED" ||
+                        it.status == "SHIPPING"
                     }.sortedByDescending { it.time }
 
-                    // 🎯 ĐÃ CẬP NHẬT: Nhóm lịch sử chỉ chứa đơn đã xong hoặc đã hủy hẳn
                     val history = allOrders.filter {
                         it.status == "COMPLETED" || it.status == "CANCELLED"
                     }.sortedByDescending { it.time }
@@ -70,6 +71,19 @@ class OrderViewModel : ViewModel() {
                     _ongoingOrders.value = ongoing
                     _historyOrders.value = history
                 }
+            }
+    }
+
+    // ✅ HÀM MỚI: Cập nhật trạng thái đơn hàng thành đã thanh toán
+    fun updateOrderToPaid(orderId: String) {
+        if (orderId.isBlank()) return
+        firestore.collection("orders").document(orderId)
+            .update("status", OrderStatus.PENDING.name)
+            .addOnSuccessListener {
+                Log.d("OrderViewModel", "✅ Đơn hàng $orderId đã được cập nhật thành PENDING (Đã thanh toán)")
+            }
+            .addOnFailureListener { e ->
+                Log.e("OrderViewModel", "❌ Lỗi cập nhật đơn hàng $orderId: ${e.message}")
             }
     }
 

@@ -27,23 +27,21 @@ import com.example.dacs_3_composer.ui.user.profile.components.ProfileMenuRow
 @Composable
 fun ProfileScreen(
     modifier: Modifier = Modifier,
-    profileViewModel: ProfileViewModel = viewModel(), // 🌟 Nhúng bộ xử lý dữ liệu vào
+    profileViewModel: ProfileViewModel = viewModel(),
     onLogoutClick: () -> Unit = {},
-    onNavigateToOrderHistory: () -> Unit = {}, // 🌟 Thêm nhận lambda
-    onNavigateToManageAddress: () -> Unit = {}  // 🌟 Thêm nhận lambda
+    onNavigateToOrderHistory: () -> Unit = {},
+    onNavigateToManageAddress: () -> Unit = {},
+    onNavigateToPaymentHistory: () -> Unit = {} // ✅ Thêm callback mới
 ) {
     val scrollState = rememberScrollState()
 
-    // Tự động load dữ liệu Tên, Email, Ảnh đại diện từ Firebase khi mở màn hình này lên
     LaunchedEffect(Unit) {
         profileViewModel.loadUserData()
     }
 
-    // 🚀 ĐĂNG KÝ BỘ CHỌN ẢNH TỪ THƯ VIỆN MÁY
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        // Nếu người dùng chọn ảnh thành công, gửi uri này lên Firebase xử lý luôn
         uri?.let { profileViewModel.uploadAvatar(it) }
     }
 
@@ -56,25 +54,20 @@ fun ProfileScreen(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // 1. Gọi Component Header cá nhân (Dữ liệu lấy động từ ViewModel)
-            // 1. Gọi Component Header cá nhân
             ProfileHeader(
                 name = profileViewModel.userName,
                 email = profileViewModel.userEmail,
-                avatarState = profileViewModel.avatarState, // 🌟 Thay đổi truyền trạng thái mới ở đây
+                avatarState = profileViewModel.avatarState,
                 onEditAvatarClick = {
-                    // Kích hoạt mở thư viện ảnh của thiết bị để lựa chọn
                     imagePickerLauncher.launch("image/*")
                 }
             )
 
-            // 2. Gọi Component Thẻ Thành viên & Ví
             MembershipAndWalletSection(
                 memberRank = "Gold Member",
                 walletBalance = "1.250k"
             )
 
-            // 3. Khối Danh sách Menu bo góc màu trắng
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(28.dp),
@@ -96,6 +89,14 @@ fun ProfileScreen(
                         title = "Địa chỉ đã lưu",
                         onClick = { onNavigateToManageAddress() }
                     )
+                    // ✅ Cập nhật: Thêm menu Lịch sử thanh toán
+                    ProfileMenuRow(
+                        icon = Icons.Default.History,
+                        iconTint = Color(0xFF2159BC),
+                        iconBgColor = Color(0xFFE8F0FE),
+                        title = "Lịch sử thanh toán",
+                        onClick = { onNavigateToPaymentHistory() }
+                    )
                     ProfileMenuRow(
                         icon = Icons.Default.Payment,
                         iconTint = Color(0xFF2159BC),
@@ -110,17 +111,9 @@ fun ProfileScreen(
                         title = "Cài đặt",
                         onClick = { /* Cài đặt app */ }
                     )
-                    ProfileMenuRow(
-                        icon = Icons.Default.HelpOutline,
-                        iconTint = Color(0xFF2159BC),
-                        iconBgColor = Color(0xFFE8F0FE),
-                        title = "Hỗ trợ",
-                        onClick = { /* Đi đến trang trợ giúp */ }
-                    )
                 }
             }
 
-            // 4. Nút Đăng xuất ở dưới cùng
             Button(
                 onClick = { onLogoutClick() },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F3F4)),
@@ -140,7 +133,6 @@ fun ProfileScreen(
             }
         }
 
-        // Hiện vòng tải xoay nhẹ đè lên màn hình khi ảnh đang được upload lên Firebase Storage
         if (profileViewModel.isUploading) {
             Box(
                 modifier = Modifier

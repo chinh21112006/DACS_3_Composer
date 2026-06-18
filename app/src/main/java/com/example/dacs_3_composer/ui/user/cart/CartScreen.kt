@@ -24,6 +24,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Payment
+import androidx.compose.material.icons.filled.Money
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -74,7 +76,8 @@ data class SavedAddress(
 @Composable
 fun CartScreen(
     cartViewModel: CartViewModel,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onNavigateToPayment: (String, Double) -> Unit
 ) {
     val context = LocalContext.current
     val cartItems = cartViewModel.cartItems
@@ -116,8 +119,6 @@ fun CartScreen(
 
     LaunchedEffect(Unit) {
         locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
-
-        // Tải danh sách Khuyến mãi thực tế từ Firebase Firestore
         cartViewModel.fetchPromotionsFromFirebase()
 
         val uid = FirebaseAuth.getInstance().currentUser?.uid
@@ -156,17 +157,18 @@ fun CartScreen(
     var shippingMethod by remember { mutableStateOf("Nhanh") }
     val shippingFee = if (shippingMethod == "Nhanh") 25000.0 else 15000.0
 
-    // Danh sách Khuyến mãi và trạng thái chọn mã từ Firebase
+    // ✅ PHƯƠNG THỨC THANH TOÁN
+    var paymentMethod by remember { mutableStateOf("CASH") } // "CASH" hoặc "ONLINE"
+
     val listPromotionsFromFirebase = cartViewModel.availablePromotions
     var selectedPromotion by remember { mutableStateOf<Promotion?>(null) }
     var showVoucherBottomSheet by remember { mutableStateOf(false) }
     val voucherSheetState = rememberModalBottomSheetState()
 
-    // Logic tính toán số tiền khuyến mãi dựa trên cấu trúc bảng dữ liệu mới
     val discount = remember(selectedPromotion, totalDishPrice) {
         if (selectedPromotion != null) {
             if (totalDishPrice < selectedPromotion!!.minOrderValue) {
-                0.0 // Tổng tiền không đạt mức chi tiêu tối thiểu của mã
+                0.0
             } else {
                 when (selectedPromotion!!.type) {
                     "percentage" -> {
@@ -210,7 +212,6 @@ fun CartScreen(
                                     return@Button
                                 }
 
-                                // Gửi đầy đủ thông tin (kèm Tên voucher và tiền giảm thực tế)
                                 cartViewModel.placeOrder(
                                     customerName = currentName,
                                     customerPhone = currentPhone,
@@ -223,12 +224,18 @@ fun CartScreen(
                                     totalDishPrice = totalDishPrice,
                                     finalTotal = finalTotal,
                                     appliedPromotionId = selectedPromotion?.id,
-
-                                    // TRUYỀN THÊM 2 TRƯỜNG KHUYẾN MÃI MỚI VÀO ĐÂY FEN NHÉ
                                     appliedPromotionTitle = selectedPromotion?.title ?: "",
                                     promotionDiscount = discount,
-
-                                    onSuccess = { onBackClick() },
+                                    paymentMethod = paymentMethod, // ✅ Truyền phương thức thanh toán
+                                    onSuccess = { orderId ->
+                                        if (paymentMethod == "ONLINE") {
+                                            onNavigateToPayment(orderId, finalTotal)
+                                        } else {
+                                            Toast.makeText(context, "Đặt hàng thành công!", Toast.LENGTH_LONG).show()
+                                            cartViewModel.clearCart()
+                                            onBackClick()
+                                        }
+                                    },
                                     onFailure = { error -> Toast.makeText(context, error, Toast.LENGTH_SHORT).show() }
                                 )
                             },
@@ -236,7 +243,8 @@ fun CartScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E56A0)),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("XÁC NHẬN ĐẶT HÀNG", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            val buttonText = if (paymentMethod == "ONLINE") "THANH TOÁN TRỰC TUYẾN" else "XÁC NHẬN ĐẶT HÀNG (COD)"
+                            Text(buttonText, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -250,6 +258,7 @@ fun CartScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Thông tin giao hàng
                     item {
                         Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
                             Column(modifier = Modifier.padding(16.dp)) {
@@ -289,29 +298,59 @@ fun CartScreen(
                         }
                     }
 
+                    // ✅ KHU VỰC CHỌN PHƯƠNG THỨC THANH TOÁN
                     item {
                         Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text(text = "Phương thức giao hàng", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                                Text(text = "Phương thức thanh toán", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                                 Spacer(modifier = Modifier.height(12.dp))
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Box(modifier = Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).background(if (shippingMethod == "Nhanh") Color(0xFFE8F0FE) else Color(0xFFF1F3F4)).border(1.dp, if (shippingMethod == "Nhanh") Color(0xFF1E56A0) else Color.Transparent, RoundedCornerShape(8.dp)).clickable { shippingMethod = "Nhanh" }.padding(12.dp), contentAlignment = Alignment.Center) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text("⚡ Giao nhanh", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = if (shippingMethod == "Nhanh") Color(0xFF1E56A0) else Color.Black)
-                                            Text("25.000 đ", fontSize = 12.sp, color = Color.Gray)
+                                
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (paymentMethod == "CASH") Color(0xFFE8F0FE) else Color(0xFFF1F3F4))
+                                            .border(1.dp, if (paymentMethod == "CASH") Color(0xFF1E56A0) else Color.Transparent, RoundedCornerShape(8.dp))
+                                            .clickable { paymentMethod = "CASH" }
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Money, contentDescription = null, tint = if (paymentMethod == "CASH") Color(0xFF1E56A0) else Color.Gray)
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column {
+                                            Text("Thanh toán khi nhận hàng (COD)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = if (paymentMethod == "CASH") Color(0xFF1E56A0) else Color.Black)
+                                            Text("Thanh toán bằng tiền mặt khi shipper giao hàng", fontSize = 12.sp, color = Color.Gray)
                                         }
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        RadioButton(selected = paymentMethod == "CASH", onClick = { paymentMethod = "CASH" })
                                     }
-                                    Box(modifier = Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).background(if (shippingMethod == "TietKiem") Color(0xFFE8F0FE) else Color(0xFFF1F3F4)).border(1.dp, if (shippingMethod == "TietKiem") Color(0xFF1E56A0) else Color.Transparent, RoundedCornerShape(8.dp)).clickable { shippingMethod = "TietKiem" }.padding(12.dp), contentAlignment = Alignment.Center) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text("🐢 Tiết kiệm", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = if (shippingMethod == "TietKiem") Color(0xFF1E56A0) else Color.Black)
-                                            Text("15.000 đ", fontSize = 12.sp, color = Color.Gray)
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (paymentMethod == "ONLINE") Color(0xFFE8F0FE) else Color(0xFFF1F3F4))
+                                            .border(1.dp, if (paymentMethod == "ONLINE") Color(0xFF1E56A0) else Color.Transparent, RoundedCornerShape(8.dp))
+                                            .clickable { paymentMethod = "ONLINE" }
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Payment, contentDescription = null, tint = if (paymentMethod == "ONLINE") Color(0xFF1E56A0) else Color.Gray)
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column {
+                                            Text("Chuyển khoản / Ví điện tử", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = if (paymentMethod == "ONLINE") Color(0xFF1E56A0) else Color.Black)
+                                            Text("Thanh toán an toàn qua PayOS", fontSize = 12.sp, color = Color.Gray)
                                         }
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        RadioButton(selected = paymentMethod == "ONLINE", onClick = { paymentMethod = "ONLINE" })
                                     }
                                 }
                             }
                         }
                     }
 
+                    // Món ăn đã chọn
                     item { Text(text = "Món ăn đã chọn", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.padding(start = 4.dp)) }
                     items(cartItems) { item ->
                         Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
@@ -334,7 +373,7 @@ fun CartScreen(
                         }
                     }
 
-                    // KHU VỰC CHỌN MÃ KHUYẾN MÃI (PROMOTION)
+                    // Chọn mã khuyến mãi
                     item {
                         Card(modifier = Modifier.fillMaxWidth().clickable { showVoucherBottomSheet = true }, colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
                             Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -348,6 +387,7 @@ fun CartScreen(
                         }
                     }
 
+                    // Chi tiết hóa đơn
                     item {
                         Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -377,6 +417,7 @@ fun CartScreen(
                 }
             }
 
+            // BottomSheets và Dialogs (Giữ nguyên logic cũ)
             if (showAddressBottomSheet) {
                 ModalBottomSheet(onDismissRequest = { showAddressBottomSheet = false }, sheetState = addressSheetState, containerColor = Color.White) {
                     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -456,7 +497,6 @@ fun CartScreen(
                 )
             }
 
-            // GIAO DIỆN BOTTOM SHEET CHỌN MÃ KHUYẾN MÃI TỪ FIREBASE
             if (showVoucherBottomSheet) {
                 ModalBottomSheet(onDismissRequest = { showVoucherBottomSheet = false }, sheetState = voucherSheetState, containerColor = Color.White) {
                     LazyColumn(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

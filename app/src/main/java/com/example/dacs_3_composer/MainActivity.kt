@@ -21,6 +21,7 @@ import com.example.dacs_3_composer.ui.user.MainRouteContainerUser
 import com.example.dacs_3_composer.ui.restaurant.MainRouteContainerRestaurant
 import com.example.dacs_3_composer.ui.shipper.MainRouteContainerShipper
 import com.example.dacs_3_composer.ui.theme.DACS_3_ComposerTheme
+import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,9 +79,13 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // ✅ KIỂM TRA ĐĂNG NHẬP ĐỂ KHÔNG BỊ QUAY LẠI TRANG LOGIN KHI DEEP LINK KÍCH HOẠT
+                val currentUser = FirebaseAuth.getInstance().currentUser
+                val startDestination = if (currentUser != null) "main_user" else "login"
+
                 NavHost(
                     navController = navController,
-                    startDestination = "login"
+                    startDestination = startDestination
                 ) {
                     composable("login") {
                         LoginScreen(
@@ -125,7 +130,7 @@ class MainActivity : ComponentActivity() {
                     composable("main_admin") {
                         MainRouteContainerAdmin(
                             onLogoutCallback = {
-                                authViewModel.logoutUser() // Khi shipper bấm đăng xuất, kích hoạt đổi authState thành "Đã đăng xuất!"
+                                authViewModel.logoutUser()
                             }
                         )
                     }

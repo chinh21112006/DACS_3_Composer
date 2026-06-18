@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -15,19 +17,19 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage // 🌟 Import Coil
+import coil.compose.AsyncImage
 import com.example.dacs_3_composer.R
 
-//      ĐƠN HÀNG ĐAG XỬ LÝ
 @Composable
 fun OngoingOrderItem(
     restaurantName: String,
     statusText: String,
     estimatedTime: String,
     itemsSummary: String,
-    restaurantImageUrl: String, // 🌟 SỬA: Đổi từ Int thành String URL
-    chuyenTheoDoiDonHang: () -> Unit,
-    modifier: Modifier = Modifier
+    restaurantImageUrl: String,
+    modifier: Modifier = Modifier, // ✅ Đã đưa lên đầu các tham số tùy chọn
+    paymentMethod: String = "CASH",
+    chuyenTheoDoiDonHang: () -> Unit
 ) {
     Card(
         modifier = modifier
@@ -38,9 +40,7 @@ fun OngoingOrderItem(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-
-                // 🌟 SỬA: Thay Image cũ bằng AsyncImage để tải ảnh từ mạng
+            Row(verticalAlignment = Alignment.Top) {
                 AsyncImage(
                     model = restaurantImageUrl.ifBlank { R.drawable.banner1 },
                     placeholder = painterResource(id = R.drawable.banner1),
@@ -54,30 +54,56 @@ fun OngoingOrderItem(
 
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = restaurantName,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = Color(0xFF191C1D)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = restaurantName,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Color(0xFF191C1D),
+                            modifier = Modifier.weight(1f)
+                        )
+                        
+                        val methodLabel = if (paymentMethod == "ONLINE") "ONLINE" else "TIỀN MẶT"
+                        val methodColor = if (paymentMethod == "ONLINE") Color(0xFF2ECC71) else Color(0xFF727785)
+                        
+                        Surface(
+                            color = methodColor.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = methodLabel,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = methodColor
+                            )
+                        }
+                    }
+                    
                     Text(
                         text = statusText,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2159BC)
+                        color = if (statusText.contains("thanh toán")) Color(0xFFE67E22) else Color(0xFF2159BC)
                     )
                     Text(
                         text = itemsSummary,
                         fontSize = 13.sp,
                         color = Color(0xFF727785),
-                        modifier = Modifier.padding(top = 2.dp)
+                        modifier = Modifier.padding(top = 2.dp),
+                        maxLines = 1
                     )
                 }
             }
-            // ... Giữ nguyên phần nút bấm bên dưới ...
+            
             Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider(color = Color(0xFFE7E8E9), thickness = 1.dp)
             Spacer(modifier = Modifier.height(12.dp))
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -90,14 +116,21 @@ fun OngoingOrderItem(
                 ) {
                     Text(text = estimatedTime, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2159BC))
                 }
-//                Button(
-//                    onClick = chuyenTheoDoiDonHang,
-//                    shape = RoundedCornerShape(12.dp),
-//                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2159BC)),
-//                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-//                ) {
-//                    Text(text = "Theo dõi đơn", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-//                }
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Xem chi tiết",
+                        fontSize = 13.sp,
+                        color = Color(0xFF2159BC),
+                        fontWeight = FontWeight.Medium
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = Color(0xFF2159BC),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
     }

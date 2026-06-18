@@ -17,10 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.dacs_3_composer.data.model.Order
 import com.example.dacs_3_composer.data.model.OrderStatus
 import java.util.Locale
 
@@ -30,9 +28,9 @@ fun OrderDetailScreen(
     orderId: String,
     orderViewModel: OrderViewModel,
     onBackClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier, // ✅ Đã đưa lên trước các lambda tùy chọn khác
+    onNavigateToPayment: (String, Double) -> Unit = { _, _ -> }
 ) {
-    // Kích hoạt lắng nghe dữ liệu thời gian thực của đơn hàng này từ Firebase
     LaunchedEffect(orderId) {
         orderViewModel.observeOrderDetails(orderId)
     }
@@ -50,6 +48,29 @@ fun OrderDetailScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
+        },
+        bottomBar = {
+            val order = orderState
+            if (order != null && order.status == OrderStatus.PENDING_PAYMENT.name) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    tonalElevation = 8.dp,
+                    shadowElevation = 8.dp,
+                    color = Color.White
+                ) {
+                    Button(
+                        onClick = { onNavigateToPayment(order.id, order.totalPrice) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                            .height(50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE67E22)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("THANH TOÁN NGAY", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                }
+            }
         }
     ) { paddingValues ->
         Box(
@@ -60,7 +81,6 @@ fun OrderDetailScreen(
         ) {
             val order = orderState
             if (order == null) {
-                // Hiển thị trạng thái đang tải nếu chưa nhận được dữ liệu từ Firebase
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = Color(0xFF2159BC))
                 }
@@ -70,7 +90,6 @@ fun OrderDetailScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // 1. Khối Trạng thái đơn hàng & Thời gian đặt
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -86,16 +105,16 @@ fun OrderDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                // Lấy tên hiển thị tiếng Việt của trạng thái
                                 val statusEnum = try { OrderStatus.valueOf(order.status) } catch (e: Exception) { null }
                                 val statusText = statusEnum?.displayName ?: order.status
                                 val statusColor = when (order.status) {
-                                    "PENDING" -> Color(0xFFFF9800)     // Cam: Chờ xác nhận
-                                    "PROCESSING" -> Color(0xFF00B0FF)  // Xanh dương nhạt: Đang nấu
-                                    "ACCEPTED" -> Color(0xFF9C27B0)    // Tím: Chờ shipper
-                                    "SHIPPING" -> Color(0xFF2159BC)    // Xanh dương: Đang giao
-                                    "COMPLETED" -> Color(0xFF4CAF50)   // Xanh lá: Hoàn thành
-                                    "CANCELLED" -> Color(0xFFDC3545)   // Đỏ: Đã hủy
+                                    "PENDING_PAYMENT" -> Color(0xFFE67E22)
+                                    "WAITING_RESTAURANT" -> Color(0xFFFF9800)
+                                    "PROCESSING" -> Color(0xFF00B0FF)
+                                    "ACCEPTED" -> Color(0xFF9C27B0)
+                                    "SHIPPING" -> Color(0xFF2159BC)
+                                    "COMPLETED" -> Color(0xFF4CAF50)
+                                    "CANCELLED" -> Color(0xFFDC3545)
                                     else -> Color.Gray
                                 }
 
@@ -121,7 +140,6 @@ fun OrderDetailScreen(
                         }
                     }
 
-                    // 2. Khối Địa chỉ & Thông tin người nhận
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -153,16 +171,6 @@ fun OrderDetailScreen(
                         }
                     }
 
-                    // 3. Tiêu đề danh sách món đặt
-                    item {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp)) {
-                            Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Chi tiết món ăn đã đặt", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-                        }
-                    }
-
-                    // 4. Danh sách các món ăn trong đơn hàng
                     items(order.items) { item ->
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -177,93 +185,45 @@ fun OrderDetailScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = item.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1A1A1A))
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "Đơn giá: ${String.format(Locale("vi", "VN"), "%,.0fđ", item.price)}",
-                                        fontSize = 13.sp,
-                                        color = Color.Gray
-                                    )
+                                    Text(text = "Đơn giá: ${String.format(Locale.getDefault(), "%,.0fđ", item.price)}", fontSize = 13.sp, color = Color.Gray)
                                 }
-                                Text(
-                                    text = "x${item.quantity}",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.DarkGray,
-                                    modifier = Modifier.padding(horizontal = 16.dp)
-                                )
-                                Text(
-                                    text = String.format(Locale("vi", "VN"), "%,.0fđ", item.price * item.quantity),
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.Black
-                                )
+                                Text(text = "x${item.quantity}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray, modifier = Modifier.padding(horizontal = 16.dp))
+                                Text(text = String.format(Locale.getDefault(), "%,.0fđ", item.price * item.quantity), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                             }
                         }
                     }
 
-                    // 5. Khối Đối soát Tài chính chi tiết (Giá gốc, Tiền giảm, Phí Ship, Voucher, Tổng tiền)
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Text(text = "Tóm tắt thanh toán", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                                 HorizontalDivider(color = Color(0xFFF5F5F5), thickness = 1.dp)
-
-                                // Tổng tiền hàng gốc trước khi giảm
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text("Tổng giá gốc món ăn", color = Color.DarkGray, fontSize = 14.sp)
-                                    Text(String.format(Locale("vi", "VN"), "%,.0f đ", order.totalDishPrice), fontSize = 14.sp)
+                                    Text(String.format(Locale.getDefault(), "%,.0f đ", order.totalDishPrice), fontSize = 14.sp)
                                 }
-
-                                // Phí vận chuyển
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text("Phí giao hàng", color = Color.DarkGray, fontSize = 14.sp)
-                                    Text("+ ${String.format(Locale("vi", "VN"), "%,.0f đ", order.shippingFee)}", fontSize = 14.sp)
+                                    Text("+ ${String.format(Locale.getDefault(), "%,.0f đ", order.shippingFee)}", fontSize = 14.sp)
                                 }
-
-                                // Hiển thị chi tiết Voucher giảm giá (Nếu đơn hàng có áp dụng mã)
-                                if (!order.appliedPromotionId.isNullOrBlank() || order.promotionDiscount > 0) {
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                        Column {
-                                            Text("Khuyến mãi áp dụng", color = Color.DarkGray, fontSize = 14.sp)
-                                            val tenVoucher = order.appliedPromotionTitle.ifBlank { "Mã giảm giá" }
-                                            Text(text = "($tenVoucher)", fontSize = 12.sp, color = Color(0xFF4CAF50), fontWeight = FontWeight.Medium)
-                                        }
-                                        Text(
-                                            text = "- ${String.format(Locale("vi", "VN"), "%,.0f đ", order.promotionDiscount)}",
-                                            fontSize = 14.sp,
-                                            color = Color.Red,
-                                            fontWeight = FontWeight.Medium
-                                        )
+                                if (order.promotionDiscount > 0) {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Khuyến mãi", color = Color.DarkGray, fontSize = 14.sp)
+                                        Text("- ${String.format(Locale.getDefault(), "%,.0f đ", order.promotionDiscount)}", fontSize = 14.sp, color = Color.Red)
                                     }
                                 }
-
                                 HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
-
-                                // Số tiền cuối cùng thực tế khách phải trả
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("Tổng thanh toán thực tế", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                    Text(
-                                        text = String.format(Locale("vi", "VN"), "%,.0f đ", order.totalPrice),
-                                        fontSize = 19.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF2159BC)
-                                    )
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                    Text("Tổng thanh toán", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    Text(text = String.format(Locale.getDefault(), "%,.0f đ", order.totalPrice), fontSize = 19.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2159BC))
                                 }
                             }
                         }
                     }
-
-                    // Khoảng đệm an toàn dưới cùng danh sách
                     item { Spacer(modifier = Modifier.height(24.dp)) }
                 }
             }

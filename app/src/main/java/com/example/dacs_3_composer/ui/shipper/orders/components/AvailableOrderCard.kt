@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.dacs_3_composer.data.model.Order
+import java.util.Locale
 
 @Composable
 fun AvailableOrderCard(
@@ -37,23 +38,43 @@ fun AvailableOrderCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "#ORD-${order.id.takeLast(4).uppercase()}",
+                    text = "#ORD-${order.id.takeLast(4).uppercase(Locale.getDefault())}",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Gray
                 )
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFE0E7FF))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "Đang lấy hàng",
-                        color = Color(0xFF4F46E5),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // ✅ HIỂN THỊ HÌNH THỨC THANH TOÁN CHO SHIPPER QUYẾT ĐỊNH NHẬN ĐƠN
+                    val methodLabel = if (order.paymentMethod == "ONLINE") "ĐÃ TRẢ" else "COD"
+                    val methodColor = if (order.paymentMethod == "ONLINE") Color(0xFF2ECC71) else Color(0xFFEF4444)
+                    
+                    Surface(
+                        color = methodColor.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = methodLabel,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = methodColor
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFE0E7FF))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "Đang chờ",
+                            color = Color(0xFF4F46E5),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
@@ -69,46 +90,41 @@ fun AvailableOrderCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Dòng thời gian dự kiến
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    painter = painterResource(id = android.R.drawable.ic_menu_recent_history),
-                    contentDescription = null,
-                    tint = Color.Gray,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(text = "Dự kiến: 15 phút nữa", fontSize = 13.sp, color = Color.Gray)
-            }
+            // Dòng địa chỉ khách (Thêm để shipper xem trước quãng đường)
+            Text(
+                text = "📍 Giao đến: ${order.customerAddress}",
+                fontSize = 13.sp,
+                color = Color.Gray,
+                maxLines = 1
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
             HorizontalDivider(color = Color(0xFFF3F4F6))
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Hàng đáy: Tiền ship & Nút Cập nhật
+            // Hàng đáy: Tiền ship & Nút Nhận đơn
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(text = "Tiền ship", fontSize = 11.sp, color = Color.Gray)
+                    Text(text = "Thu nhập dự kiến", fontSize = 11.sp, color = Color.Gray)
                     Text(
-                        text = "${String.format("%,.0f", order.shippingFee)}đ", // 🌟 ĐÃ SỬA: Đổi từ totalPrice sang shippingFee (20.000đ)
-                        fontSize = 16.sp,
+                        text = "${String.format(Locale.getDefault(), "%,.0f", order.shippingFee)}đ",
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = Color(0xFF2563EB)
                     )
                 }
 
-                OutlinedButton(
+                Button(
                     onClick = onUpdateClick,
-                    border = BorderStroke(1.dp, Color(0xFF2563EB)),
                     shape = RoundedCornerShape(99.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF2563EB)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
                     contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)
                 ) {
-                    Text(text = "Cập nhật", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Nhận đơn", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

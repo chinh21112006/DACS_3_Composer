@@ -13,21 +13,20 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage // 🌟 Import Coil
+import coil.compose.AsyncImage
 import com.example.dacs_3_composer.R
 
-
-//              LỊCH SỬ ĐƠN HÀNG
 @Composable
 fun HistoryOrderItem(
     restaurantName: String,
     date: String,
     price: String,
     itemsSummary: String,
-    restaurantImageUrl: String, // 🌟 SỬA TẠI ĐÂY: Nhận String thay vì Int
+    restaurantImageUrl: String,
+    modifier: Modifier = Modifier, // ✅ Đã đưa lên vị trí tham số tùy chọn đầu tiên
+    paymentMethod: String = "CASH",
     onReorderClick: () -> Unit,
-    onDetailClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onDetailClick: () -> Unit
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -36,9 +35,7 @@ fun HistoryOrderItem(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-
-                // 🌟 SỬA TẠI ĐÂY: Thay đổi từ Image sang AsyncImage để load avatar từ link mạng
+            Row(verticalAlignment = Alignment.Top) {
                 AsyncImage(
                     model = restaurantImageUrl.ifBlank { R.drawable.banner1 },
                     placeholder = painterResource(id = R.drawable.banner1),
@@ -52,29 +49,50 @@ fun HistoryOrderItem(
 
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = restaurantName,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = Color(0xFF191C1D)
-                    )
-                    Text(
-                        text = date,
-                        fontSize = 12.sp,
-                        color = Color(0xFF727785)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = restaurantName,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Color(0xFF191C1D),
+                            modifier = Modifier.weight(1f)
+                        )
+                        
+                        val methodLabel = if (paymentMethod == "ONLINE") "ONLINE" else "CASH"
+                        val methodColor = if (paymentMethod == "ONLINE") Color(0xFF2ECC71) else Color(0xFF727785)
+                        
+                        Surface(
+                            color = methodColor.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = methodLabel,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = methodColor
+                            )
+                        }
+                    }
+                    Text(text = date, fontSize = 12.sp, color = Color(0xFF727785))
                     Text(
                         text = itemsSummary,
                         fontSize = 13.sp,
                         color = Color(0xFF191C1D),
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = 4.dp),
+                        maxLines = 1
                     )
                 }
                 Text(
                     text = price,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = Color(0xFF2159BC)
+                    color = Color(0xFF2159BC),
+                    modifier = Modifier.padding(start = 8.dp)
                 )
             }
 
