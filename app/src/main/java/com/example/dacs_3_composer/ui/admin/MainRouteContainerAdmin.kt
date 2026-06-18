@@ -20,7 +20,8 @@ import com.example.dacs_3_composer.ui.admin.category.AdminCategoryScreen
 import com.example.dacs_3_composer.ui.admin.complaint.AdminComplaintScreen
 import com.example.dacs_3_composer.ui.admin.customer.AdminCustomerScreen
 import com.example.dacs_3_composer.ui.admin.profile.AdminProfileScreen
-import com.example.dacs_3_composer.ui.admin.payments.AdminPaymentScreen
+import com.example.dacs_3_composer.ui.admin.settings.AdminPromotionScreen
+import com.example.dacs_3_composer.ui.admin.settings.AdminPromotionViewModel
 
 @Composable
 fun MainRouteContainerAdmin(
@@ -29,13 +30,13 @@ fun MainRouteContainerAdmin(
 ) {
     val navController = rememberNavController()
 
-    // Danh sách các mục hiển thị dưới thanh BottomBar điều hướng của Super Admin
+    // Danh sách 5 mục hiển thị dưới thanh BottomBar điều hướng của Super Admin
     val navigationItems = listOf(
         NavigationAdmin.Overview,
         NavigationAdmin.Orders,
-        NavigationAdmin.Payments, // ✅ Thêm tab Giao dịch
         NavigationAdmin.Categories,
         NavigationAdmin.Customers,
+        NavigationAdmin.Promotions,
         NavigationAdmin.Profile
     )
 
@@ -82,7 +83,7 @@ fun MainRouteContainerAdmin(
                         },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = Color.White,
-                            selectedTextColor = Color(0xFF2159BC),
+                            selectedTextColor = Color(0xFF2159BC), // Màu xanh chủ đạo của app
                             indicatorColor = Color(0xFF2159BC),
                             unselectedIconColor = Color(0xFFC4C7C5),
                             unselectedTextColor = Color(0xFF727785)
@@ -94,36 +95,54 @@ fun MainRouteContainerAdmin(
     ) { paddingValues ->
         NavHost(
             navController = navController,
-            startDestination = NavigationAdmin.Overview.route,
+            startDestination = NavigationAdmin.Overview.route, // Màn hình mặc định ban đầu là Báo cáo & Thống kê
             modifier = Modifier.padding(paddingValues)
         ) {
+            // Tab 1: Báo cáo & Thống kê
             composable(NavigationAdmin.Overview.route) {
                 AdminAnalyticsScreen()
             }
 
+            // Tab 2: Đơn hàng & Xử lý Khiếu nại
             composable(NavigationAdmin.Orders.route) {
                 AdminComplaintScreen()
             }
-            
-            // ✅ Tab 3: Quản lý Giao dịch PayOS
-            composable(NavigationAdmin.Payments.route) {
-                AdminPaymentScreen()
-            }
 
+            // Tab 4: Quản lý Danh mục chung (Nhãn hiển thị UI: Thực đơn)
             composable(NavigationAdmin.Categories.route) {
                 AdminCategoryScreen()
             }
 
+            // Tab 5: Quản lý Khách hàng (Nhãn hiển thị UI: Cá nhân)
             composable(NavigationAdmin.Customers.route) {
                 AdminCustomerScreen()
             }
 
+            // Tab 3: Quản lý Hồ sơ & Cài đặt hệ thống
             composable(NavigationAdmin.Profile.route) {
+                // 🎯 Đã loại bỏ 'onNavigateToAccountInfo' để khớp hoàn toàn với cấu trúc Dialog sửa tại chỗ của Screen
                 AdminProfileScreen(
-                    onNavigateToVehicleManagement = { },
-                    onNavigateToNotification = { },
-                    onNavigateToSupport = { },
+                    onNavigateToVehicleManagement = { /* Điều hướng tới màn hình quản lý xe nếu có */ },
+                    onNavigateToNotification = { /* Điều hướng tới màn hình Payout Settings hoặc thông báo */ },
+                    onNavigateToSupport = { /* Điều hướng tới bộ phận hỗ trợ */ },
                     onLogoutCallbackk = (onLogoutCallback)
+                )
+            }
+            composable(NavigationAdmin.Promotions.route) {
+                // Khởi tạo ViewModel cho màn hình Voucher Admin
+                val promotionViewModel: AdminPromotionViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+
+                AdminPromotionScreen(
+                    viewModel = promotionViewModel,
+                    onBackClick = {
+                        // Khi nhấn nút Back tại top bar, quay về màn hình Overview mặc định của Admin
+                        navController.navigate(NavigationAdmin.Overview.route) {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
