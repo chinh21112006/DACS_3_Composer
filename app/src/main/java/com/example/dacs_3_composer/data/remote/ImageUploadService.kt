@@ -12,8 +12,6 @@ import kotlin.coroutines.resumeWithException
 object ImageUploadService {
 
     suspend fun uploadImage(context: Context, imageUri: Uri): String = suspendCancellableCoroutine { continuation ->
-        // Cần đảm bảo sử dụng .unsigned() và truyền đúng upload_preset đã tạo trên dashboard Cloudinary
-        // Mặc định thường là 'ml_default' cho unsigned upload.
         try {
             MediaManager.get().upload(imageUri)
                 .unsigned("ml_default") 

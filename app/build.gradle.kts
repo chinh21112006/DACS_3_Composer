@@ -49,10 +49,8 @@ dependencies {
         implementation("com.google.accompanist:accompanist-permissions:0.34.0")
         // Thư viện bản đồ OpenStreetMap miễn phí
         implementation("org.osmdroid:osmdroid-android:6.1.20")
-
         // Firebase Realtime Database để đồng bộ vị trí real-time
         implementation("com.google.firebase:firebase-database-ktx:21.0.0")
-
         // Thư viện Play Services Location để lấy GPS (nếu chưa có)
         implementation("com.google.android.gms:play-services-location:21.2.0")
     }
